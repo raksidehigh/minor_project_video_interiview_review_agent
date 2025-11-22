@@ -1,0 +1,48 @@
+# Environment files
+.env
+.env.local
+
+# Service account keys (NEVER commit these!)
+*.json
+service-account*.json
+credentials.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Docker
+.dockerignore
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Old scripts (keep new ones)
+cleanup_cloud.sh
+cleanup_docker.sh
+test_local.sh
+

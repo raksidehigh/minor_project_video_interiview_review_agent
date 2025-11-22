@@ -1,0 +1,66 @@
+# .gcloudignore - Files to exclude from Cloud Build uploads
+# This overrides .gitignore for gcloud uploads
+
+# Environment files (never upload secrets!)
+.env
+.env.local
+*.env
+
+# Service account keys (commenting out - we need it for Cloud Run)
+# service-account-key.json
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+test_data/
+
+# Git
+.git/
+.gitignore
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Documentation (not needed for build)
+*.md
+!README.md
+
+# Scripts (not needed in container)
+local_test.sh
+local_test_new.sh
+cleanup_*.sh
+
+# Docker (not needed, already in container)
+.dockerignore
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# IMPORTANT: Explicitly include these files needed for build
+!Dockerfile
+!requirements.txt
+!app/
+!deploy_new.sh
+!cloudbuild.yaml
+
