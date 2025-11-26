@@ -15,7 +15,7 @@ print()
 # Configuration
 USER_ID = "user_2"
 VIDEO_INDEX = 3
-BUCKET_NAME = "edumentor-virtual-interview"
+BUCKET_NAME = "virtual-interview-agent"
 VIDEO_PATH = f"{USER_ID}/interview_videos/video_{VIDEO_INDEX}.webm"
 GCS_URI = f"gs://{BUCKET_NAME}/{VIDEO_PATH}"
 

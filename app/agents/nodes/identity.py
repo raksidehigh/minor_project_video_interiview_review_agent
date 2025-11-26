@@ -1,9 +1,8 @@
 """
 Identity Verification Node
 Verifies candidate identity using:
-1. OCR extraction from government ID (Google Cloud Vision API)
-2. Name matching between gov_id and username
-3. face_recognition library (dlib-based) for facial matching
+3. Extract faces from profile_pic
+4. Compare profile pic face with ALL video frames
 """
 import os
 import tempfile
@@ -17,7 +16,8 @@ import cv2
 import numpy as np
 import mediapipe as mp
 from google.cloud import storage
-from google.cloud import vision
+from google.cloud import storage
+# from google.cloud import vision  # Removed: No longer needed
 from difflib import SequenceMatcher
 
 from ..state import InterviewState
@@ -443,196 +443,7 @@ def extract_middle_frame(video_url: str) -> str:
         raise ValueError(f"Could not extract any frame from video. Last error: {str(e)}")
 
 
-def extract_text_from_image(image_path: str) -> str:
-    """
-    Extract text from government ID using Google Cloud Vision API OCR
-    
-    Args:
-        image_path: Local path to the image file
-    
-    Returns:
-        Extracted text from the image
-    """
-    try:
-        client = vision.ImageAnnotatorClient()
-        
-        with open(image_path, 'rb') as image_file:
-            content = image_file.read()
-        
-        image = vision.Image(content=content)
-        
-        # Perform text detection
-        response = client.text_detection(image=image)
-        texts = response.text_annotations
-        
-        if texts:
-            # First annotation contains all text
-            full_text = texts[0].description
-            return full_text
-        
-        if response.error.message:
-            raise Exception(f"Vision API Error: {response.error.message}")
-        
-        return ""
-    
-    except Exception as e:
-        print(f"      ⚠️ OCR Error: {str(e)}")
-        return ""
-
-
-def extract_name_from_text(text: str) -> str:
-    """
-    Extract name from OCR text (heuristic-based)
-    
-    Common patterns in government IDs:
-    - "Name: John Doe"
-    - "NAME\nJOHN DOE"
-    - First few lines usually contain the name
-    
-    Returns the most likely name candidate
-    """
-    if not text:
-        return ""
-    
-    # Blacklist common government ID headers/text
-    BLACKLIST_PHRASES = {
-        'income tax', 'department', 'government', 'india', 'permanent account',
-        'account number', 'pan card', 'aadhaar', 'aadhar', 'voter', 'election',
-        'driving licence', 'passport', 'republic', 'भारत', 'सत्यमेव जयते',
-        'satyamev jayate', 'आयकर', 'विभाग', 'issued by', 'date of birth',
-        'dob', 'address', 'father', 'mother', 'registration'
-    }
-    
-    # Split into lines
-    lines = [line.strip() for line in text.split('\n') if line.strip()]
-    
-    def is_blacklisted(line: str) -> bool:
-        """Check if line contains blacklisted phrases"""
-        line_lower = line.lower()
-        return any(phrase in line_lower for phrase in BLACKLIST_PHRASES)
-    
-    # Pattern 1: Look for "Name:" or "NAME:" pattern
-    for line in lines:
-        if re.search(r'name\s*:?\s*', line, re.IGNORECASE):
-            # Extract text after "name:"
-            name_match = re.sub(r'^.*?name\s*:?\s*', '', line, flags=re.IGNORECASE)
-            if name_match and len(name_match) > 2 and not is_blacklisted(name_match):
-                return name_match.strip()
-    
-    # Pattern 2: Look for lines with 2-4 words (likely names) - skip blacklisted
-    for line in lines[:10]:  # Check first 10 lines
-        if is_blacklisted(line):
-            continue
-        
-        words = line.split()
-        if 2 <= len(words) <= 4:
-            # Check if words look like names (alphabetic)
-            if all(word.replace('.', '').isalpha() for word in words):
-                return line.strip()
-    
-    # Fallback: Return first substantial line (not blacklisted)
-    for line in lines[:10]:
-        if is_blacklisted(line):
-            continue
-        if len(line) > 3 and any(c.isalpha() for c in line):
-            return line.strip()
-    
-    return ""
-
-
-def calculate_name_similarity(name1: str, name2: str, extracted_text: str = "") -> float:
-    """
-    Calculate similarity between two names (0-100%)
-    
-    New logic:
-    1. First try to match whole username from extracted text
-    2. If not matched, truncate each word individually and match with extracted text
-    3. If >50% matches, it's good to go
-    
-    Args:
-        name1: Expected username
-        name2: Extracted name from OCR
-        extracted_text: Full OCR text for word-by-word matching
-    """
-    # Normalize: lowercase, remove extra spaces
-    name1 = ' '.join(name1.lower().split())
-    name2 = ' '.join(name2.lower().split())
-    extracted_text_lower = extracted_text.lower() if extracted_text else ""
-    
-    logger.info(f"🔍 [IDENTITY] Name matching process:")
-    logger.info(f"   - Expected name (normalized): '{name1}'")
-    logger.info(f"   - Extracted name (normalized): '{name2}'")
-    logger.info(f"   - OCR text available for matching: {bool(extracted_text_lower)}")
-    if extracted_text_lower:
-        logger.info(f"   - OCR text length: {len(extracted_text_lower)} characters")
-    
-    # Step 1: Try whole username match first
-    if name1 == name2:
-        logger.info(f"   ✅ Exact match found between normalized names")
-        return 100.0
-    
-    # Check if whole username appears in extracted text
-    if extracted_text_lower and name1 in extracted_text_lower:
-        logger.info(f"   ✅ Whole username '{name1}' found in OCR text")
-        return 100.0
-    
-    # Step 2: If whole match failed, truncate each word and match individually
-    if extracted_text_lower:
-        logger.info(f"   🔄 Trying word-by-word matching with truncated words...")
-        name1_words = name1.split()
-        matched_words = 0
-        matched_word_details = []
-        
-        logger.info(f"   - Splitting expected name into words: {name1_words}")
-        
-        for word in name1_words:
-            word_matched = False
-            matched_truncation = None
-            # Try different truncations of the word
-            word_len = len(word)
-            # Try full word, then progressively shorter versions (min 3 chars)
-            for trunc_len in range(word_len, max(2, word_len - 5), -1):
-                truncated = word[:trunc_len]
-                if truncated in extracted_text_lower:
-                    matched_words += 1
-                    word_matched = True
-                    matched_truncation = truncated
-                    break  # Found a match for this word, move to next
-            
-            if word_matched:
-                matched_word_details.append(f"'{word}' -> matched as '{matched_truncation}'")
-                logger.info(f"      ✅ Word '{word}' matched (truncated to '{matched_truncation}') in OCR text")
-            else:
-                matched_word_details.append(f"'{word}' -> NO MATCH")
-                logger.warning(f"      ❌ Word '{word}' NOT found in OCR text")
-        
-        # Calculate match percentage
-        if len(name1_words) > 0:
-            match_percentage = (matched_words / len(name1_words)) * 100
-            logger.info(f"   📊 Word matching results:")
-            logger.info(f"      - Total words in expected name: {len(name1_words)}")
-            logger.info(f"      - Words matched: {matched_words}")
-            logger.info(f"      - Match percentage: {match_percentage:.1f}%")
-            logger.info(f"      - Match details: {', '.join(matched_word_details)}")
-            
-            if match_percentage > 50:
-                logger.info(f"   ✅ Match percentage > 50% - PASSING")
-                return match_percentage
-            else:
-                logger.warning(f"   ⚠️  Match percentage ≤ 50% - FALLING BACK to sequence similarity")
-    
-    # Fallback: Calculate sequence similarity (original logic)
-    similarity = SequenceMatcher(None, name1, name2).ratio() * 100
-    
-    # Also check if all words from shorter name are in longer name
-    words1 = set(name1.split())
-    words2 = set(name2.split())
-    
-    if words1.issubset(words2) or words2.issubset(words1):
-        # Boost similarity if one is subset of other
-        similarity = max(similarity, 85.0)
-    
-    return similarity
+# Removed: extract_text_from_image, extract_name_from_text, calculate_name_similarity
 
 
 def verify_face_match(ref_image: str, target_image: str) -> Dict[str, Any]:
@@ -777,11 +588,10 @@ def verify_face_match(ref_image: str, target_image: str) -> Dict[str, Any]:
 
 def verify_identity(state: InterviewState) -> InterviewState:
     """
-    Node: Verify candidate identity with comprehensive checks:
-    1. Extract name from government ID using OCR
-    2. Compare extracted name with provided username
-    3. Extract faces from profile_pic and gov_id
-    4. Compare both reference faces with all 5 video frames
+    Node: Verify candidate identity using pure Face Verification:
+    1. Download Profile Picture
+    2. Compare Profile Picture face with faces in ALL uploaded videos
+    3. Calculate pass rate (must match in >80% of videos)
     
     Updates state['identity_verification'] with results.
     """
@@ -791,104 +601,52 @@ def verify_identity(state: InterviewState) -> InterviewState:
     video_results = []
     
     try:
-        # ========== STEP 1: Extract name from government ID ==========
-        print("   📄 Step 1: Extracting text from government ID...")
-        gov_id_path = download_from_gcs(state['gov_id_url'])
-        
-        extracted_text = extract_text_from_image(gov_id_path)
-        extracted_name = extract_name_from_text(extracted_text)
-        
-        # Log FULL OCR text extracted from government ID
-        logger.info(f"📄 [IDENTITY] FULL OCR Text extracted from government ID for user_id={state['user_id']}:")
-        logger.info(f"   {'='*80}")
-        if extracted_text:
-            logger.info(f"   Full OCR Text (length: {len(extracted_text)} characters):")
-            logger.info(f"   {extracted_text}")
-        else:
-            logger.warning(f"   ⚠️  NO TEXT DETECTED from government ID!")
-        logger.info(f"   {'='*80}")
-        
-        print(f"      OCR Text Preview: {extracted_text[:100] if extracted_text else '(no text detected)'}...")
-        print(f"      Extracted Name: '{extracted_name}'")
-        
-        # ========== STEP 2: Compare names ==========
-        print(f"   📝 Step 2: Comparing names...")
-        expected_name = state['username']
-        
-        logger.info(f"📝 [IDENTITY] Starting name matching:")
-        logger.info(f"   - Expected Name (from username): '{expected_name}'")
-        logger.info(f"   - Extracted Name (from OCR): '{extracted_name}'")
-        logger.info(f"   - Full OCR Text will be used for word-by-word matching")
-        logger.info(f"   - OCR Text Length: {len(extracted_text)} characters")
-        
-        name_similarity = calculate_name_similarity(expected_name, extracted_name, extracted_text)
-        name_match = bool(name_similarity >= 50.0)  # 50% similarity threshold (changed from 70%)
-        
-        print(f"      Expected: '{expected_name}'")
-        print(f"      Extracted: '{extracted_name}'")
-        print(f"      Similarity: {name_similarity:.1f}%")
-        print(f"      {'✅ MATCH' if name_match else '❌ NO MATCH'}")
-        
-        # Log final summary of what text was used for matching
-        logger.info(f"📋 [IDENTITY] NAME MATCHING SUMMARY:")
-        logger.info(f"   - Full OCR Text Available: {bool(extracted_text)}")
-        logger.info(f"   - OCR Text Length: {len(extracted_text)} characters")
-        logger.info(f"   - Expected Name: '{expected_name}'")
-        logger.info(f"   - Extracted Name (heuristic): '{extracted_name}'")
-        logger.info(f"   - Similarity Score: {name_similarity:.1f}%")
-        logger.info(f"   - Match Result: {'✅ MATCH (≥50%)' if name_match else '❌ NO MATCH (<50%)'}")
-        logger.info(f"   - OCR Text Used For Matching: {'✅ YES - Full text used for word-by-word matching' if extracted_text else '❌ NO - Only extracted name used'}")
-        
-        if not name_match:
-            errors.append(f"Name mismatch: Expected '{expected_name}', extracted '{extracted_name}' (similarity: {name_similarity:.1f}%)")
-        
-        # ========== STEP 3: Download profile picture ==========
-        print("   📥 Step 3: Downloading profile picture...")
+        # ========== STEP 1: Download profile picture ==========
+        print("   📥 Step 1: Downloading profile picture...")
         profile_pic_path = download_from_gcs(state['profile_pic_url'])
         
-        # ========== STEP 4: Compare faces with video_0 only ==========
-        # Only check video_0 (first video) with profile_pic, not gov_id
-        print(f"   👤 Step 4: Comparing profile pic face with video_0 only...")
+        # ========== STEP 2: Compare faces with ALL videos ==========
+        print(f"   👤 Step 2: Comparing profile pic face with ALL {len(state['video_urls'])} videos...")
         
-        if state['video_urls']:
-            video_0_url = state['video_urls'][0]  # First video is video_0
-            print(f"      🎬 Video 0 (identity check video)...")
+        for i, video_url in enumerate(state['video_urls']):
+            print(f"      🎬 Checking Video {i}...")
             
             try:
                 # Extract best frame with face detection (streams video without downloading)
-                frame_path = extract_best_frame_with_face(video_0_url)
+                frame_path = extract_best_frame_with_face(video_url)
                 
-                # Compare with profile_pic only (no gov_id matching)
+                # Compare with profile_pic
                 profile_result = verify_face_match(profile_pic_path, frame_path)
                 
                 video_results.append({
-                    "video_url": video_0_url,
-                    "video_index": 0,
+                    "video_url": video_url,
+                    "video_index": i,
                     "verified": profile_result.get('verified', False),
                     "similarity": profile_result.get('similarity', 0),
                     "profile_pic_similarity": profile_result.get('similarity', 0),
                     "best_match_source": "profile_pic"
                 })
                 
-                print(f"         Profile Pic: {profile_result.get('similarity', 0):.1f}%")
+                print(f"         Similarity: {profile_result.get('similarity', 0):.1f}%")
                 print(f"         {'✅ MATCH' if profile_result.get('verified', False) else '❌ NO MATCH'}")
                 
                 # Cleanup extracted frame
-                os.unlink(frame_path)
+                if os.path.exists(frame_path):
+                    os.unlink(frame_path)
                 
             except Exception as e:
-                error_msg = f"Video 0 failed: {str(e)}"
+                error_msg = f"Video {i} failed: {str(e)}"
                 errors.append(error_msg)
                 print(f"         ❌ {error_msg}")
                 video_results.append({
-                    "video_url": video_0_url,
-                    "video_index": 0,
+                    "video_url": video_url,
+                    "video_index": i,
                     "verified": False,
                     "similarity": 0,
                     "error": str(e)
                 })
         
-        # AGGRESSIVE CLEANUP: Delete ALL temp files
+        # AGGRESSIVE CLEANUP: Delete profile pic temp file
         try:
             if profile_pic_path and os.path.exists(profile_pic_path) and profile_pic_path != state['profile_pic_url']:
                 os.unlink(profile_pic_path)
@@ -896,72 +654,49 @@ def verify_identity(state: InterviewState) -> InterviewState:
         except Exception as e:
             print(f"      ⚠️  Failed to delete profile_pic: {e}")
         
-        try:
-            if gov_id_path and os.path.exists(gov_id_path) and gov_id_path != state['gov_id_url']:
-                os.unlink(gov_id_path)
-                print(f"      🧹 Deleted gov_id temp file")
-        except Exception as e:
-            print(f"      ⚠️  Failed to delete gov_id: {e}")
-        
-        # ========== STEP 5: Calculate overall verification ==========
-        # Only video_0 is checked now
+        # ========== STEP 3: Calculate overall verification ==========
         verified_count = sum(1 for r in video_results if r.get('verified', False))
         total_count = len(video_results)
         face_verification_rate = (verified_count / total_count * 100) if total_count > 0 else 0
         
-        # Calculate average face similarity (only video_0)
+        # Calculate average face similarity
         confidences = [r.get('similarity', 0) for r in video_results if 'similarity' in r]
         avg_face_confidence = sum(confidences) / len(confidences) if confidences else 0
         
-        # Overall verification requires BOTH name match AND face verification
-        # Face verification: video_0 must pass with >= 60% similarity
-        face_verified = bool(verified_count >= 1 and avg_face_confidence >= 60)
-        overall_verified = bool(name_match and face_verified)
-        
-        # Calculate combined confidence score
-        # 50% weight to name, 50% weight to face verification
-        combined_confidence = (name_similarity * 0.5) + (avg_face_confidence * 0.5)
+        # Overall verification: Must pass in >80% of videos OR have high average confidence (>75%)
+        # This allows for 1 bad video (lighting/angle) if others are strong
+        face_verified = bool(face_verification_rate >= 80 or avg_face_confidence >= 75)
         
         # Update state
         state['identity_verification'] = {
-            "verified": overall_verified,
-            "confidence": combined_confidence,
-            "name_match": name_match,
-            "name_similarity": name_similarity,
-            "extracted_name": extracted_name,
-            "expected_name": expected_name,
+            "verified": face_verified,
+            "confidence": avg_face_confidence,
+            "name_match": True, # Deprecated but kept for schema compatibility
             "face_verified": face_verified,
             "face_verification_rate": face_verification_rate,
             "videos_passed": verified_count,
             "videos_total": total_count,
             "avg_face_confidence": avg_face_confidence,
             "video_results": video_results,
-            "red_flags": errors,
-            "ocr_text": extracted_text[:500]  # Store first 500 chars for debugging
+            "red_flags": errors
         }
         
         # Set control flow - ALWAYS continue to gather all evidence
         state['current_stage'] = 'identity_complete'
         
         # Log failure but don't block workflow
-        if not overall_verified:
+        if not face_verified:
             if not state.get('errors'):
                 state['errors'] = []
             
-            failure_reasons = []
-            if not name_match:
-                failure_reasons.append(f"Name mismatch ({name_similarity:.1f}% similarity)")
-            if not face_verified:
-                failure_reasons.append(f"Face verification failed ({face_verification_rate:.0f}% pass rate)")
-            
             state['errors'].append(
-                f"Identity verification failed: {', '.join(failure_reasons)}"
+                f"Identity verification failed: Face matched in only {verified_count}/{total_count} videos ({face_verification_rate:.0f}%)"
             )
         
         print(f"\n   📊 VERIFICATION SUMMARY:")
-        print(f"      Name Match: {'✅' if name_match else '❌'} ({name_similarity:.1f}%)")
-        print(f"      Face Match: {'✅' if face_verified else '❌'} ({verified_count}/5 videos passed)")
-        print(f"      Overall: {'✅ VERIFIED' if overall_verified else '❌ FAILED'} (Confidence: {combined_confidence:.1f}%)")
+        print(f"      Videos Passed: {verified_count}/{total_count} ({face_verification_rate:.0f}%)")
+        print(f"      Avg Confidence: {avg_face_confidence:.1f}%")
+        print(f"      Overall: {'✅ VERIFIED' if face_verified else '❌ FAILED'}")
         
     except Exception as e:
         error_msg = f"Identity verification system error: {str(e)}"

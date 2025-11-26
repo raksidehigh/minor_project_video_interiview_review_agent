@@ -25,7 +25,7 @@ print()
 
 # Configuration
 USER_ID = "user_2"
-BUCKET_NAME = "edumentor-virtual-interview"
+BUCKET_NAME = "virtual-interview-agent"
 VIDEO_INDICES = [1, 2, 3, 4, 5]  # Skip video_0 (identity check)
 
 print(f"📋 Test Configuration:")

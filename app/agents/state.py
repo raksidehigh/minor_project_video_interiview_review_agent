@@ -38,10 +38,9 @@ class InterviewState(TypedDict):
     """
     # ========== INPUT (Required) ==========
     user_id: str
-    username: str  # Candidate's full name (to verify against government ID)
+    username: str  # Candidate's full name
     profile_pic_url: str  # GCS URL: gs://bucket/user_id/profile_pic.jpg
-    gov_id_url: str  # GCS URL to government ID photo: gs://bucket/user_id/gov_id.jpg
-    video_urls: List[str]  # List of video GCS URLs (video_0 for identity + video_1-5 for interview)
+    video_urls: List[str]  # List of video GCS URLs (video_1-5 for interview)
     
     # ========== INTERVIEW QUESTIONS (Hardcoded) ==========
     interview_questions: List[Dict]  # 5 hardcoded questions with criteria
