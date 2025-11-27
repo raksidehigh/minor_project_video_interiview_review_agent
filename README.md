@@ -34,8 +34,8 @@ The system follows a **Microservices-based 3-Tier Architecture**, ensuring separ
 
 ```mermaid
 graph TD
-    User[Candidate] -->|HTTPS| Frontend[Frontend Application\n(Static Web App)]
-    Frontend -->|REST API| Middleware[Node.js Middleware\n(Express.js)]
+    User[Candidate] -->|HTTPS| Frontend[Frontend Application]
+    Frontend -->|REST API| Middleware[Node.js Middleware]
     
     subgraph "Tier 1: Client Layer"
         Frontend
