@@ -36,7 +36,7 @@ echo ""
 echo "🚀 Starting container..."
 if [ -z "$GOOGLE_API_KEY" ]; then
     echo "⚠️  Warning: GOOGLE_API_KEY not set. Using fallback key (may be invalid)"
-    GOOGLE_API_KEY="AIzaSyChww0PCNK8FR8GXoOV-n4SgvUEJ0wKKZo"
+    GOOGLE_API_KEY="AIzaSyCySRN9RAvmwW8K3ItgziAzOGIQAlsrnno"
 else
     echo "   ✅ Using GOOGLE_API_KEY from environment"
 fi
