@@ -406,5 +406,355 @@ The system integrates with **Google Cloud Logging**.
 *   **Fraud Detection:** Enhance identity verification with liveness detection (blinking/movement checks).
 
 ---
-**End of Documentation**
 
+## 11. Data Models & Schemas (TypedDict Spec)
+
+### 11.1 InterviewState Schema
+The core data structure passed through all agents in the LangGraph workflow is defined in `app/agents/state.py`:
+
+```python
+class InterviewState(TypedDict):
+    # INPUT (Required)
+    user_id: str
+    username: str  
+    profile_pic_url: str  # gs://bucket/user_id/profile_pic.jpg
+    video_urls: List[str]  # [video_1.webm, ..., video_5.webm]
+    interview_questions: List[Dict]  # 5 hardcoded questions
+    
+    # AGENT OUTPUTS
+    identity_verification: Optional[Dict]  # Agent 1
+    video_quality: Optional[Dict]  # Agent 2
+    transcriptions: Optional[Dict]  # Agent 3
+    content_evaluation: Optional[Dict]  # Agent 4
+    behavioral_analysis: Optional[Dict]  # Agent 5
+    final_decision: Optional[Dict]  # Agent 6
+    
+    # CONTROL FLOW
+    should_continue: bool
+    current_stage: str
+    errors: List[str]
+```
+
+### 11.2 Google Cloud Storage (GCS) Bucket Structure
+
+The system expects the following file structure in the `virtual-interview-agent` bucket:
+
+```
+gs://virtual-interview-agent/
+├── user_123/
+│   ├── profile_images/
+│   │   └── profile_pic.jpg
+│   └── interview_videos/
+│       ├── video_0.webm  # Optional identity check
+│       ├── video_1.webm  # Question 1
+│       ├── video_2.webm  # Question 2
+│       ├── video_3.webm  # Question 3
+│       ├── video_4.webm  # Question 4
+│       └── video_5.webm  # Question 5
+└── temp_transcriptions/
+    └── user_123/
+        └── <uuid>.flac  # Temporary audio files (auto-deleted)
+```
+
+---
+
+## 12. Prompt Engineering & LLM Configuration
+
+### 12.1 Model Selection
+*   **Content Evaluation (Agent 4):** `gemini-2.5-flash-exp` (Temperature: 0.3)
+*   **Behavioral Analysis (Agent 5):** `gemini-2.5-flash` (Temperature: 0.3)
+*   **Decision Reasoning (Agent 6):** `gemini-2.5-flash` (Temperature: 0.3)
+
+### 12.2 MVP Philosophy: "Generous Scoring"
+The prompts are **MVP-optimized** to be **extremely welcoming and encouraging**. Key principles:
+*   **Default to PASS:** Automatic 100 score if ANY positive keywords detected.
+*   **Normal motivations are POSITIVE:** Monetization, career growth, opportunities are **NOT red flags**.
+*   **Slight nervousness shows they care:** Do NOT penalize nervous candidates.
+*   **Focus on POTENTIAL:** Assume positive intent always.
+
+### 12.3 Content Evaluation Prompts (Agent 4 - `content.py`)
+
+#### Question 1: "Introduce yourself and tell us about your academic background"
+**LLM Prompt (Excerpt from code):**
+```
+BE EXTREMELY WELCOMING - we want to encourage candidates who show ANY positive intent.
+
+CRITICAL MVP RULES:
+1. If they mention ANYTHING about education, university, college → AUTOMATIC PASS
+2. If they mention their name and ANY academic-related word → AUTOMATIC PASS
+3. Vague references like "I studied", "my college" → ALL ACCEPTABLE
+4. Even if they just say their name and mention being a student → PASS
+5. Only FAIL if completely irrelevant with zero educational context
+
+GENEROUS INTERPRETATION:
+- "I'm studying" = mentions field of study ✓
+- "I go to university" = mentions institution ✓
+- Any subject name (math, science, etc.) = field of study ✓
+
+SCORING GUIDANCE:
+- ANY educational context → intent_positive_percentage = 75+
+- Mentions university OR field → intent = 85+
+- Only completely off-topic → intent < 50
+```
+
+**Scoring Logic (from `content.py`):**
+```python
+# Answer Relevance (70%)
+answer_relevance_score = 70 if passed else 65
+
+# Clarity (30%): Filler threshold = 30 (very lenient)
+clarity_score = 35 if filler_count < 30 else 30
+
+# Keywords (10%): Sentiment not negative
+keywords_score = 12 if sentiment != 'negative' else 10
+
+# MVP Override: If answer shows 40% intent → FULL MARKS (100)
+if minimal_relevance and intent >= 40:
+    score = 100
+    overall_passed = True
+```
+
+#### Question 2: "What motivated you to apply?"
+**Ultra-Lenient MVP Rules (from `content.py`):**
+```
+🎯 ULTRA-LENIENT MVP RULES (MANDATORY):
+1. **ANY MENTION OF HELPING = AUTOMATIC 100**: "help", "assist" → INSTANT PASS
+2. **MONETIZATION IS EXCELLENT**: "get paid", "earn" → POSITIVE, NEVER red flags
+3. **COMBINATION = PERFECT**: Helping + Money = IDEAL (realistic!)
+4. **ANY PROGRAM INTEREST = PASS**: Vague interest → 90+ score
+5. **GIVE 100 BY DEFAULT**: Unless hostile or off-topic
+
+🚫 NEVER FLAG AS RED FLAGS:
+- "monetize", "get monetized", "earn money", "financial benefit"
+- Any realistic motivations - HEALTHY and NORMAL
+
+✅ AUTOMATIC 100 IF:
+- Mentions helping words (help, assist, support, contribute)
+- Shows interest in program
+- Mentions ANY positive motivation
+
+❌ ONLY FAIL IF:
+- Explicitly hostile
+- Completely off-topic
+- Refuses to answer
+```
+
+### 12.4 Behavioral Analysis Prompt (Agent 5 - `behavioral.py`)
+```
+BE VERY GENEROUS in your assessment - we're building a welcoming community.
+
+MVP GUIDELINES:
+- Normal career motivations (money, growth) are NOT red flags - HEALTHY!
+- Slight nervousness is EXPECTED - shows they care!
+- Any sign of helpfulness should be HEAVILY REWARDED
+- Focus on POTENTIAL, not perfection
+
+SCORING GUIDELINES (CRITICAL):
+- **Base score: 80/100** (high baseline)
+- **Default to 85** for engaged candidates
+- **90+ for enthusiasm or relevant experience**
+- Only reduce below 80 for serious issues
+
+MANDATORY:
+- behavioral_score must be 85+ for normal engaged candidates
+- Only reduce below 80 for anger, rudeness, or refusal to participate
+```
+
+---
+
+## 13. GCS Storage & Workspace Management
+
+### 13.1 Signed URL Generation (`gcs_streaming.py`)
+The system uses **signed URLs** to stream videos directly from GCS without downloading:
+
+```python
+def get_signed_url(gcs_url: str, expiration_minutes: int = 60) -> str:
+    """
+    Generate signed URL for direct GCS access
+    
+    Example:
+        signed_url = get_signed_url("gs://bucket/video.mp4")
+        cap = cv2.VideoCapture(signed_url)  # Stream directly! NO DOWNLOAD!
+    """
+    storage_client = storage.Client()
+    bucket, blob_path = parse_gcs_url(gcs_url)
+    blob = bucket.blob(blob_path)
+    
+    signed_url = blob.generate_signed_url(
+        version="v4",
+        expiration=datetime.timedelta(minutes=expiration_minutes),
+        method="GET"
+    )
+    return signed_url
+```
+
+**Memory Impact:** ✅ **Zero** - Videos are streamed, never stored on disk.
+
+### 13.2 Workspace Isolation (`workspace.py`)
+Each user gets an **isolated temporary workspace** to prevent file conflicts:
+
+```python
+class UserWorkspace:
+    def __init__(self, user_id: str):
+        # Create unique workspace
+        self.workspace = tempfile.gettempdir() / f"video_assessments/{user_id}_{timestamp}/"
+        self.videos_dir = self.workspace / "videos"
+        self.audios_dir = self.workspace / "audios"
+    
+    def cleanup(self) -> Dict:
+        """MANDATORY cleanup with verification"""
+        shutil.rmtree(self.workspace)  # Delete ALL files
+        verify_deletion(self.workspace)  # Ensure deleted
+        gc.collect()  # Force garbage collection
+        return {"deleted": True, "verified": True, "files_deleted": count}
+```
+
+**Cleanup Flow:**
+1.  **Phase 1:** Download files to workspace
+2.  **Phase 2-3:** Process assessment
+3.  **Phase 4:** **MANDATORY** workspace deletion before response
+
+**Safety Check:** `verify_cleanup_before_response()` blocks the API response if cleanup fails:
+```python
+if not cleanup_report.get("verified"):
+    raise RuntimeError("CRITICAL: Workspace deletion failed")
+```
+
+---
+
+## 14. Performance Optimization & Memory Management
+
+### 14.1 Memory Usage Breakdown (from `LOGGING_MEMORY_IMPLICATIONS.md`)
+
+| Component | Memory per Request | Notes |
+| :--- | :--- | :--- |
+| **In-Memory Logging** | 14 MB | Python logging buffers |
+| **Application State** | 2-5 MB | InterviewState object |
+| **Face Recognition** | 300-500 MB | dlib face encodings |
+| **Video Frame Buffers** | 50-100 MB | OpenCV processing |
+| **Total per Request** | **~400-650 MB** | **Peak memory** |
+
+**Concurrent Requests:**
+*   1 request: ~650 MB
+*   10 concurrent: ~6.5 GB
+*   **Cloud Run Config:** 4 GB memory → Safe for ~6 concurrent requests
+
+### 14.2 Optimization Strategies
+
+#### 1. Video Streaming (No Download)
+```python
+# ❌ OLD (Downloads 50 MB × 5 = 250 MB)
+video_path = download_from_gcs(gcs_url)
+cap = cv2.VideoCapture(video_path)
+
+# ✅ NEW (Streams directly, 0 MB overhead)
+signed_url = get_signed_url(gcs_url)
+cap = cv2.VideoCapture(signed_url)  # Streams!
+```
+
+**Memory Saved:** 250 MB per request
+
+#### 2. Parallel Execution (`graph_optimized.py`)
+```python
+# Agents 1, 2, 3 run CONCURRENTLY
+identity_state, quality_state, transcribe_state = await asyncio.gather(
+    verify_identity_parallel(resources, state),
+    check_quality_parallel(resources, state),
+    transcribe_videos_parallel(resources, state)
+)
+```
+
+**Time Saved:** 4-5 minutes → 30-45 seconds (**90% faster**)
+
+#### 3. Mandatory Workspace Cleanup
+```python
+# BEFORE sending response:
+cleanup_report = workspace.cleanup()
+verify_cleanup_before_response(cleanup_report)  # Blocks if failed
+```
+
+Prevents memory leaks and disk exhaustion.
+
+---
+
+## 15. Speech-to-Text Configuration (`transcribe.py`)
+
+### 15.1 Google Cloud Speech-to-Text V2 (Chirp 3)
+```python
+config = cloud_speech.RecognitionConfig(
+    auto_decoding_config=cloud_speech.AutoDetectDecodingConfig(),
+    language_codes=["auto"],  # Auto-detect language
+    model="chirp_3",  # Latest Chirp model
+    features=cloud_speech.RecognitionFeatures(
+        enable_automatic_punctuation=True
+    ),
+    denoiser_config=cloud_speech.DenoiserConfig(
+        denoise_audio=True,
+        snr_threshold=20.0  # Medium sensitivity
+    )
+)
+```
+
+### 15.2 Synchronous vs. Batch Recognition
+*   **Short audio (< 60s):** `recognize()` (synchronous)
+*   **Long audio (≥ 60s):** `batch_recognize()` (long-running operation)
+
+```python
+duration = get_audio_duration(audio_path)
+
+if duration >= 60:
+    # Upload to GCS for batch
+    temp_gcs_uri = upload_audio_to_gcs(audio_path, user_id)
+    operation = client.batch_recognize(request)
+    response = operation.result(timeout=300)  # 5min timeout
+else:
+    # Synchronous for short audio
+    response = client.recognize(request)
+```
+
+### 15.3 Transcription Output
+```python
+{
+  "transcript": "Full text of the answer...",
+  "confidence": 0.95,  # 95% confidence
+  "word_count": 127,
+  "speaking_rate": 152.5,  # Words per minute
+  "filler_words": 8,  # "um", "uh", "like" count
+  "detected_language": "en-US",
+  "word_timestamps": [  # Word-level timing
+    {"word": "Hello", "start_time": 0.0, "end_time": 0.5},
+    ...
+  ]
+}
+```
+
+---
+
+## 16. Codebase Module Guide
+
+### 16.1 Main Application
+*   **`app/main.py`**: FastAPI entry point, `/api/v1/assess` endpoint, file discovery logic.
+
+### 16.2 Agent Nodes (`app/agents/nodes/`)
+*   **`identity.py`**: MediaPipe + face_recognition (dlib). Threshold: 0.6 Euclidean distance.
+*   **`quality.py`**: OpenCV quality analysis (Resolution, FPS, Brightness, Sharpness, Face Visibility).
+*   **`transcribe.py`**: Speech-to-Text V2 with Chirp 3, auto language detection.
+*   **`content.py`**: LLM content evaluation with MVP-optimized prompts.
+*   **`behavioral.py`**: Gemini behavioral profiling (engagement, confidence).
+*   **`aggregate.py`**: Final decision (70% Content + 30% Behavioral).
+
+### 16.3 Utilities (`app/utils/`)
+*   **`gcs_streaming.py`**: Signed URL generation for streaming.
+*   **`workspace.py`**: Isolated workspace with mandatory cleanup.
+*   **`speech_client.py`**: Singleton Speech-to-Text client.
+*   **`parallel.py`**: Parallel task manager.
+
+### 16.4 State Management
+*   **`app/agents/state.py`**: TypedDict definitions (`InterviewState`, `VideoAnalysis`).
+*   **`app/agents/graph_optimized.py`**: 4-Phase optimized workflow (Prep → Parallel → Aggregate → Cleanup).
+
+---
+
+**End of Comprehensive Technical Documentation**
+
+For questions or contributions, please refer to the source code in the `app/` directory or contact the project maintainers.
