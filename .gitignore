@@ -46,3 +46,4 @@ cleanup_cloud.sh
 cleanup_docker.sh
 test_local.sh
 
+.temp

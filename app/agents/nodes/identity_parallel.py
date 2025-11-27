@@ -593,6 +593,7 @@ async def verify_identity_parallel(resources: Dict, state: InterviewState) -> In
         print(f"🔍 [IDENTITY] Skipping name extraction (no gov ID)")
         name_match_score = 100.0  # Default pass
         extracted_name = state['username']  # Use provided username
+        extracted_text = ""  # No OCR text since no gov ID
         
         print(f"🔍 [IDENTITY] Using provided name: {extracted_name}")
         

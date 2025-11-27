@@ -3,107 +3,247 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Interview Assessment</title>
+    <title>AI Interview Platform</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gray-50 min-h-screen">
-    <div class="max-w-4xl mx-auto p-6">
-        <header class="mb-8">
-            <h1 class="text-3xl font-bold text-gray-900 mb-4">Video Interview Assessment</h1>
-            <div class="w-full bg-gray-200 rounded-full h-2 mb-2">
-                <div class="bg-blue-600 h-2 rounded-full transition-all" id="progressFill" style="width: 0%"></div>
-            </div>
-            <p class="text-sm text-gray-600" id="stepIndicator">Step 1 of 7</p>
-        </header>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-content">
+            <div class="spinner-large"></div>
+            <p id="loadingText" class="loading-text">Processing...</p>
+        </div>
+    </div>
 
-        <main id="mainContent">
-            <!-- Step 1: Personal Info -->
-            <section id="step-personal" class="step bg-white rounded-lg shadow p-6">
-                <h2 class="text-2xl font-semibold mb-4">Personal Information</h2>
-                <form id="personalForm" class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                        <input type="text" id="name" required placeholder="John Doe" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+    <!-- Main Container -->
+    <div class="container">
+        
+        <!-- Login Screen -->
+        <div id="loginScreen" class="screen active">
+            <div class="auth-card">
+                <div class="auth-header">
+                    <i class="fas fa-video text-5xl text-blue-600 mb-4"></i>
+                    <h1 class="text-3xl font-bold text-gray-800">AI Interview Platform</h1>
+                    <p class="text-gray-600 mt-2">Complete your technical assessment</p>
+                </div>
+                
+                <form id="loginForm" class="auth-form">
+                    <div class="form-group">
+                        <label><i class="fas fa-user"></i> Full Name</label>
+                        <input type="text" id="loginName" required placeholder="John Doe">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
-                        <input type="date" id="dob" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-envelope"></i> Email Address</label>
+                        <input type="email" id="loginEmail" required placeholder="john@example.com">
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                        <input type="email" id="email" required placeholder="john@example.com" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    
+                    <div class="form-group">
+                        <label><i class="fas fa-calendar"></i> Date of Birth</label>
+                        <input type="date" id="loginDob" required>
                     </div>
-                    <button type="button" onclick="nextStep()" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition">Next</button>
+                    
+                    <button type="submit" class="btn-primary">
+                        Start Interview <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
                 </form>
-            </section>
+            </div>
+        </div>
 
-            <!-- Step 2: Profile Photo -->
-            <section id="step-photo" class="step hidden bg-white rounded-lg shadow p-6">
-                <h2 class="text-2xl font-semibold mb-2">Profile Photo</h2>
-                <p class="text-gray-600 mb-4">Take a clear photo for identity verification.</p>
-                <div class="bg-gray-900 rounded-lg overflow-hidden mb-4 aspect-video flex items-center justify-center">
-                    <video id="photoVideo" autoplay playsinline muted class="w-full"></video>
-                    <canvas id="photoCanvas" class="hidden"></canvas>
-                    <img id="photoPreview" class="hidden w-full" alt="Profile Preview">
-                </div>
-                <div class="flex gap-2">
-                    <button type="button" onclick="startCamera('photo')" class="flex-1 bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700">Start Camera</button>
-                    <button type="button" id="captureBtn" disabled onclick="capturePhoto()" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50">Capture</button>
-                    <button type="button" id="retakePhotoBtn" class="hidden flex-1 bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700" onclick="retakePhoto()">Retake</button>
-                    <button type="button" id="nextPhotoBtn" disabled onclick="nextStep()" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50">Next</button>
-                </div>
-            </section>
-
-            <!-- Video Steps -->
-            <section id="step-video" class="step hidden bg-white rounded-lg shadow p-6">
-                <h2 id="videoTitle" class="text-2xl font-semibold mb-2">Question 1</h2>
-                <p id="videoPrompt" class="text-gray-600 mb-2">Introduce yourself and tell us about your background.</p>
-                <p class="text-sm text-orange-600 font-medium mb-4">⏱️ Minimum 15 seconds required</p>
-                <div class="bg-gray-900 rounded-lg overflow-hidden mb-4 aspect-video flex items-center justify-center">
-                    <video id="recordingVideo" autoplay playsinline muted class="w-full"></video>
-                    <video id="playbackVideo" controls class="hidden w-full"></video>
-                </div>
-                <div class="text-center text-2xl font-mono mb-4" id="timer">00:00</div>
-                <div class="flex gap-2">
-                    <button type="button" id="startCameraBtn" onclick="startCamera('video')" class="flex-1 bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700">Start Camera</button>
-                    <button type="button" id="recordBtn" disabled onclick="toggleRecording()" class="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 disabled:opacity-50">Record</button>
-                    <button type="button" id="retakeVideoBtn" class="hidden flex-1 bg-gray-600 text-white py-2 px-4 rounded-lg hover:bg-gray-700" onclick="retakeVideo()">Retake</button>
-                    <button type="button" id="nextVideoBtn" disabled onclick="nextVideoStep()" class="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50">Next</button>
-                </div>
-            </section>
-
-            <!-- Results -->
-            <section id="step-results" class="step hidden bg-white rounded-lg shadow p-6">
-                <div id="loadingState" class="text-center py-12">
-                    <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
-                    <h2 class="text-2xl font-semibold mb-2">Processing Interview...</h2>
-                    <p class="text-gray-600">AI agents are analyzing your responses.</p>
-                </div>
-                <div id="resultsContent" class="hidden">
-                    <div id="decisionBadge" class="inline-block px-4 py-2 rounded-full text-white font-semibold mb-4 bg-green-600">PASS</div>
-                    <h2 class="text-2xl font-semibold mb-4">Assessment Complete</h2>
-                    <div class="bg-blue-50 rounded-lg p-6 mb-6">
-                        <div class="text-center">
-                            <span class="text-gray-600">Final Score</span>
-                            <div class="text-5xl font-bold text-blue-600" id="finalScore">0</div>
+        <!-- Interview Screen -->
+        <div id="interviewScreen" class="screen">
+            <!-- Header -->
+            <div class="interview-header">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <i class="fas fa-video text-2xl text-blue-600"></i>
+                        <div>
+                            <h2 class="text-xl font-bold text-gray-800">AI Interview</h2>
+                            <p class="text-sm text-gray-600" id="userName"></p>
                         </div>
                     </div>
-                    <div class="mb-6">
-                        <h3 class="text-xl font-semibold mb-2">Recommendation</h3>
-                        <p id="recommendationText" class="text-gray-700"></p>
+                    <button onclick="logout()" class="btn-secondary">
+                        <i class="fas fa-sign-out-alt"></i> Exit
+                    </button>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div class="progress-container">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <p class="text-sm text-gray-600 mt-2" id="progressText">Step 1 of 7</p>
+            </div>
+
+            <!-- Content Area -->
+            <div class="interview-content">
+                
+                <!-- Step 1: Profile Photo -->
+                <div id="step1" class="step-card active">
+                    <div class="step-header">
+                        <i class="fas fa-camera text-3xl text-blue-600"></i>
+                        <h3>Profile Photo</h3>
+                        <p>Take a clear photo for identity verification</p>
                     </div>
-                    <div class="mb-6">
-                        <h3 class="text-xl font-semibold mb-2">Strengths</h3>
-                        <ul id="strengthsList" class="list-disc list-inside space-y-1 text-gray-700"></ul>
+                    
+                    <div class="video-container">
+                        <video id="photoVideo" autoplay playsinline muted></video>
+                        <canvas id="photoCanvas" class="hidden"></canvas>
+                        <img id="photoPreview" class="hidden">
                     </div>
-                    <div>
-                        <h3 class="text-xl font-semibold mb-2">Concerns</h3>
-                        <ul id="concernsList" class="list-disc list-inside space-y-1 text-gray-700"></ul>
+                    
+                    <div class="step-actions">
+                        <button id="captureBtn" onclick="capturePhoto()" class="btn-primary">
+                            <i class="fas fa-camera"></i> Capture Photo
+                        </button>
+                        <button id="retakePhotoBtn" onclick="retakePhoto()" class="btn-secondary hidden">
+                            <i class="fas fa-redo"></i> Retake
+                        </button>
+                        <button id="nextPhotoBtn" onclick="goToStep(2)" class="btn-primary hidden">
+                            Next <i class="fas fa-arrow-right"></i>
+                        </button>
                     </div>
                 </div>
-            </section>
-        </main>
+
+                <!-- Step 2: Identity Video -->
+                <div id="step2" class="step-card">
+                    <div class="step-header">
+                        <i class="fas fa-user-check text-3xl text-blue-600"></i>
+                        <h3>Camera & Microphone Check</h3>
+                        <p>Please say the following clearly:</p>
+                        <div class="question-prompt" style="margin-top: 16px;">
+                            "My name is <strong id="identityName"></strong>. My camera and microphone are working properly. I am ready to begin the interview."
+                        </div>
+                        <p style="margin-top: 12px; color: #ef4444; font-weight: 600;">
+                            <i class="fas fa-clock"></i> Minimum 15 seconds required
+                        </p>
+                    </div>
+                    
+                    <div class="video-container">
+                        <video id="identityVideo" autoplay playsinline muted></video>
+                        <video id="identityPlayback" controls class="hidden"></video>
+                        <div class="recording-indicator hidden" id="identityRecIndicator">
+                            <i class="fas fa-circle text-red-500 animate-pulse"></i> Recording
+                        </div>
+                        <div class="timer" id="identityTimer">00:00</div>
+                    </div>
+                    
+                    <div class="step-actions">
+                        <button id="startIdentityBtn" onclick="startIdentityRecording()" class="btn-primary">
+                            <i class="fas fa-video"></i> Start Recording
+                        </button>
+                        <button id="stopIdentityBtn" onclick="stopIdentityRecording()" class="btn-danger hidden">
+                            <i class="fas fa-stop"></i> Stop
+                        </button>
+                        <button id="retakeIdentityBtn" onclick="retakeIdentity()" class="btn-secondary hidden">
+                            <i class="fas fa-redo"></i> Retake
+                        </button>
+                        <button id="nextIdentityBtn" onclick="goToStep(3)" class="btn-primary hidden">
+                            Next <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Steps 3-7: Interview Questions -->
+                <div id="step3" class="step-card">
+                    <div class="step-header">
+                        <i class="fas fa-question-circle text-3xl text-blue-600"></i>
+                        <h3 id="questionTitle">Question 1</h3>
+                        <p id="questionText" class="question-prompt"></p>
+                        
+                        <!-- Hints Section -->
+                        <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 16px; border-radius: 8px; margin-top: 16px; text-align: left;">
+                            <p style="font-weight: 600; color: #92400e; margin-bottom: 8px;">
+                                <i class="fas fa-lightbulb"></i> Hints:
+                            </p>
+                            <ul id="questionHints" style="color: #78350f; font-size: 14px; line-height: 1.6; margin-left: 20px;">
+                            </ul>
+                        </div>
+                        
+                        <p style="margin-top: 12px; color: #ef4444; font-weight: 600;">
+                            <i class="fas fa-clock"></i> Minimum 15 seconds required
+                        </p>
+                    </div>
+                    
+                    <div class="video-container">
+                        <video id="questionVideo" autoplay playsinline muted></video>
+                        <video id="questionPlayback" controls class="hidden"></video>
+                        <div class="recording-indicator hidden" id="questionRecIndicator">
+                            <i class="fas fa-circle text-red-500 animate-pulse"></i> Recording
+                        </div>
+                        <div class="timer" id="questionTimer">00:00</div>
+                    </div>
+                    
+                    <div class="step-actions">
+                        <button id="startQuestionBtn" onclick="startQuestionRecording()" class="btn-primary">
+                            <i class="fas fa-video"></i> Start Recording
+                        </button>
+                        <button id="stopQuestionBtn" onclick="stopQuestionRecording()" class="btn-danger hidden">
+                            <i class="fas fa-stop"></i> Stop
+                        </button>
+                        <button id="retakeQuestionBtn" onclick="retakeQuestion()" class="btn-secondary hidden">
+                            <i class="fas fa-redo"></i> Retake
+                        </button>
+                        <button id="nextQuestionBtn" onclick="nextQuestion()" class="btn-primary hidden">
+                            Next <i class="fas fa-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Results Screen -->
+                <div id="stepResults" class="step-card">
+                    <div id="processingState" class="text-center py-12">
+                        <div class="spinner-large mx-auto mb-6"></div>
+                        <h3 class="text-2xl font-bold mb-2">Analyzing Your Interview</h3>
+                        <p class="text-gray-600">Our AI agents are evaluating your responses...</p>
+                    </div>
+
+                    <div id="errorState" class="hidden text-center py-12">
+                        <i class="fas fa-exclamation-triangle text-6xl text-red-500 mb-4"></i>
+                        <h3 class="text-2xl font-bold text-red-600 mb-2">Assessment Failed</h3>
+                        <p class="text-gray-600 mb-6" id="errorMessage"></p>
+                        <button onclick="retryAssessment()" class="btn-primary">
+                            <i class="fas fa-redo"></i> Retry Assessment
+                        </button>
+                    </div>
+
+                    <div id="resultsContent" class="hidden">
+                        <div class="text-center mb-8">
+                            <div id="decisionBadge" class="decision-badge"></div>
+                            <h3 class="text-3xl font-bold mt-4">Assessment Complete</h3>
+                        </div>
+                        
+                        <div class="score-card">
+                            <div class="score-circle">
+                                <span id="finalScore" class="score-value">0</span>
+                                <span class="score-label">Final Score</span>
+                            </div>
+                        </div>
+                        
+                        <div class="result-section">
+                            <h4><i class="fas fa-comment-dots"></i> Recommendation</h4>
+                            <p id="recommendationText"></p>
+                        </div>
+                        
+                        <div class="result-section">
+                            <h4><i class="fas fa-check-circle text-green-600"></i> Strengths</h4>
+                            <ul id="strengthsList" class="result-list"></ul>
+                        </div>
+                        
+                        <div class="result-section">
+                            <h4><i class="fas fa-exclamation-circle text-yellow-600"></i> Areas for Improvement</h4>
+                            <ul id="concernsList" class="result-list"></ul>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
     </div>
+
     <script src="script.js"></script>
 </body>
 </html>

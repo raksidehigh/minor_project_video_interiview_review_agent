@@ -3,33 +3,29 @@
 echo "🚀 Starting Local Development Environment..."
 echo ""
 
+# Kill any existing services
+echo "🧹 Cleaning up existing services..."
+pkill -f "node server.js" 2>/dev/null
+pkill -f "python.*3000" 2>/dev/null
+sleep 2
+
 # Check prerequisites
 if [ ! -f "../service-account-key.json" ]; then
     echo "❌ Error: service-account-key.json not found in project root"
     exit 1
 fi
 
-if [ -z "$GOOGLE_API_KEY" ]; then
-    echo "⚠️  Warning: GOOGLE_API_KEY not set"
-    echo "   Set it with: export GOOGLE_API_KEY='your_key'"
-fi
-
 # Set credentials
 export GOOGLE_APPLICATION_CREDENTIALS="../service-account-key.json"
 
-# Start Python agent
-echo "📦 Starting Python Agent (port 8000)..."
-cd ..
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 &
-PYTHON_PID=$!
-echo "   PID: $PYTHON_PID"
-
-# Wait for Python to start
-sleep 5
+# Use deployed Cloud Run endpoint for assessment
+export ASSESSMENT_API_URL="https://video-interview-api-wm2yb4fdna-uc.a.run.app/api/v1/assess"
+echo "📡 Using Cloud Run endpoint: $ASSESSMENT_API_URL"
+echo ""
 
 # Start Node.js backend
 echo "📦 Starting Node.js Backend (port 8080)..."
-cd interview-frontend-app/backend
+cd backend
 
 # Check if node_modules exists
 if [ ! -d "node_modules" ]; then
@@ -51,7 +47,6 @@ cd ../frontend
 echo ""
 echo "✅ All services started!"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🔗 Python Agent: http://localhost:8000/docs"
 echo "🔗 Backend API:  http://localhost:8080"
 echo "🔗 Frontend:     http://localhost:3000"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -65,5 +60,5 @@ python3 -m http.server 3000
 # Cleanup on exit
 echo ""
 echo "🛑 Stopping services..."
-kill $PYTHON_PID $NODE_PID 2>/dev/null
+kill $NODE_PID 2>/dev/null
 echo "✅ All services stopped"

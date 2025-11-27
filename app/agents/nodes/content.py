@@ -47,7 +47,7 @@ def check_keywords(text: str, keywords: List[str]) -> tuple[int, List[str]]:
 
 def evaluate_question_1(transcript: str, llm: ChatGoogleGenerativeAI) -> Dict[str, Any]:
     """
-    Question 1: System Design: Design a Video Streaming Platform Like YouTube.
+    Question 1: How would you design a Video Streaming Platform Like YouTube.
     
     Criteria:
     - Content Check: Architectural thinking, key components (upload, processing, storage, CDN, database)

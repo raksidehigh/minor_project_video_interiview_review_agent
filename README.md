@@ -1,9 +1,11 @@
 # Video Interview Assessment System: Comprehensive Technical Documentation
 
-**Version:** 2.2.0
-**Last Updated:** November 27, 2025
+**Version:** 2.4.0
+**Last Updated:** November 28, 2025
 **Authors:** Rakshit Jain ([@raksidehigh](https://github.com/raksidehigh)), Hitesh Joshi ([@thehiteshjoshi](https://github.com/thehiteshjoshi))
 **Interview Type:** Full Stack Developer Technical Assessment
+
+**🌐 Live Application:** https://interview-frontend-wm2yb4fdna-uc.a.run.app/
 
 ---
 
@@ -13,19 +15,36 @@ The **Video Interview Assessment System** is a state-of-the-art, AI-powered plat
 
 Traditional hiring processes are often bottlenecked by the manual review of initial screening videos. This system eliminates that bottleneck by providing instant, objective, and deep analysis of candidate responses. It employs a **3-Tier Architecture** comprising a responsive Frontend, a robust Node.js Middleware, and a high-performance Python AI Assessment Agent.
 
+### Deployed Services
+*   **Frontend:** https://interview-frontend-wm2yb4fdna-uc.a.run.app/
+*   **Backend API:** https://interview-backend-wm2yb4fdna-uc.a.run.app
+*   **Database Admin:** https://interview-backend-wm2yb4fdna-uc.a.run.app/admin/database
+*   **AI Agent:** https://video-interview-api-wm2yb4fdna-uc.a.run.app
+
 ### Key Capabilities
-*   **Automated Identity Verification:** Uses advanced facial recognition (ArcFace/DeepFace) to ensure the candidate in the video matches their profile picture across all interview responses.
+*   **Camera & Microphone Check:** Candidates verify their setup by stating their name and confirming equipment functionality.
+*   **Automated Identity Verification:** Uses advanced facial recognition to ensure the candidate in the video matches their profile picture.
 *   **Technical Content Evaluation:** Analyzes the semantic depth of answers against specific technical criteria using Large Language Models (Gemini 2.5 Flash).
 *   **Behavioral Profiling:** Assesses communication clarity, confidence, and problem-solving approach using psychological markers.
 *   **Video Quality Assurance:** Automatically checks for lighting, resolution, and audio clarity to ensure assessment validity.
 *   **Optimized Performance:** Features a parallel processing pipeline that reduces assessment time from 5 minutes to under 45 seconds per candidate.
+*   **Session Management:** Persistent sessions with localStorage, allowing candidates to resume interrupted interviews.
+*   **Result Caching:** Instant result retrieval for completed assessments without re-running AI analysis.
+*   **Question Hints:** Provides helpful hints for each technical question to guide candidate responses.
 
 ### Interview Questions (Full Stack Developer)
+Each question includes helpful hints to guide candidates:
+
 1. **System Design:** Design a Video Streaming Platform Like YouTube
+   - *Hints: Upload/storage/CDN, database design, scalability, video transcoding*
 2. **Architecture:** Explain the Trade-offs Between Monolithic vs Microservices Architecture
+   - *Hints: Simplicity vs complexity, deployment differences, team size impact*
 3. **Security:** How Would You Handle Authentication and Authorization in a Full Stack Application?
+   - *Hints: Auth vs AuthZ difference, JWT/OAuth, security best practices, RBAC*
 4. **Performance:** Describe Your Approach to Optimizing the Performance of a Slow Web Application
+   - *Hints: Measuring/profiling, caching, database optimization, frontend optimization*
 5. **Real-time Systems:** How Would You Design a Real-time Notification System?
+   - *Hints: WebSockets/SSE, message queues, scalability, offline handling*
 
 ### Business Value
 *   **90% Reduction in Screening Time:** Recruiters receive a finalized report with Pass/Fail recommendations instantly.
@@ -51,7 +70,7 @@ graph TD
     
     subgraph "Tier 2: Orchestration Layer"
         Middleware -->|Uploads| GCS[Google Cloud Storage]
-        Middleware -->|Stores Data| SQLite[(SQLite Database)]
+        Middleware -->|Stores Data| PostgreSQL[(Cloud SQL PostgreSQL)]
         Middleware -->|Triggers| AIAgent[Python AI Assessment Agent]
     end
     
@@ -86,11 +105,12 @@ graph TD
 *   **Responsibility:**
     *   **API Gateway:** Acts as the single entry point for the frontend, preventing direct exposure of the AI Agent.
     *   **File Management:** Receives multipart file uploads (videos, images) and streams them directly to Google Cloud Storage (GCS) using `@google-cloud/storage`.
-    *   **Data Persistence:** Stores user metadata and assessment results in a local SQLite database (`interviews.db`) for record-keeping.
+    *   **Data Persistence:** Stores user metadata and assessment results in Cloud SQL (PostgreSQL) for persistent, scalable storage.
     *   **Service Orchestration:** Formats the assessment request and calls the Python AI Agent.
 *   **Key Files:**
     *   `server.js`: The Express server definition, route handlers (`/submit-interview`, `/upload-video`), and GCS integration logic.
-    *   `package.json`: Dependency definitions (`multer`, `axios`, `better-sqlite3`).
+    *   `db.js`: PostgreSQL database connection and operations module.
+    *   `package.json`: Dependency definitions (`multer`, `axios`, `pg`).
 
 #### Tier 3: AI Assessment Agent (Intelligence Layer)
 *   **Location:** `app/` (Root Directory)
@@ -115,7 +135,7 @@ graph TD
     *   The Middleware streams the video to GCS bucket `virtual-interview-agent` under the path `user_id/interview_videos/`.
 4.  **Submission:**
     *   Once all videos are uploaded, the Frontend calls `POST /submit-interview`.
-    *   The Middleware saves the user record to SQLite.
+    *   The Middleware saves the user record to Cloud SQL (PostgreSQL).
     *   The Middleware triggers the AI Agent via `POST /api/v1/assess`.
 5.  **Assessment:**
     *   The AI Agent downloads the media from GCS.
@@ -143,9 +163,11 @@ The middleware serves as the "glue" between the user and the AI.
     *   Files are NOT stored locally on the container (which is ephemeral). Instead, they are streamed directly to GCS using `blob.createWriteStream()`.
     *   **Naming Convention:** Files are stored as `[user_id]/[file_type]/[filename]`.
         *   Example: `user_123/interview_videos/video_1.webm`
-*   **Database Schema (SQLite):**
-    *   `users`: Stores `id`, `username`, `email`, `created_at`.
-    *   `assessments`: Stores `user_id`, `scores` (JSON), `decision`, `timestamp`.
+*   **Database Schema (Cloud SQL PostgreSQL):**
+    *   `users`: Stores `id`, `name`, `email`, `dob`, `created_at`.
+    *   `assessments`: Stores `id`, `user_id`, `result` (JSONB), `gcs_path`, `created_at`.
+    *   **Indexes:** Email and user_id indexed for fast lookups.
+    *   **Connection:** Via Cloud SQL Proxy for secure, low-latency access from Cloud Run.
 
 ### 3.3 Python AI Agent (The Core)
 This is the most complex component, built on **LangGraph**.
@@ -166,21 +188,22 @@ This is the most complex component, built on **LangGraph**.
 The core intelligence of the system resides in its 6-agent workflow. Each agent is a specialized node in the LangGraph network.
 
 ### 4.1 Agent 1: Identity Verification
-**Goal:** Prevent proxy interviewing by ensuring the person in the video matches the profile picture.
+**Goal:** Verify candidate identity through facial recognition and equipment check.
 
 *   **Technology Stack:**
     *   **MediaPipe Face Detection:** Used first to robustly extract face crops from images (handling rotation/lighting better than dlib).
     *   **face_recognition (dlib):** Generates 128-dimensional face encodings for comparison.
     *   **Euclidean Distance:** Measures similarity between encodings.
 *   **Process:**
-    1.  **Extraction:** The agent extracts the face from the Profile Picture and the *best* frame from each of the 5 interview videos.
-    2.  **Comparison:** It compares the Profile Picture encoding against each Video Frame encoding.
-    3.  **Thresholding:**
+    1.  **Camera Check:** Candidate records a video stating: "My name is [Name]. My camera and microphone are working properly. I am ready to begin the interview."
+    2.  **Extraction:** The agent extracts the face from the Profile Picture and the *best* frame from the camera check video.
+    3.  **Comparison:** It compares the Profile Picture encoding against the Video Frame encoding.
+    4.  **Thresholding:**
         *   **Distance Threshold:** `0.6` (Lower is better).
         *   **Similarity Score:** Calculated as `100 - (distance * 100)`.
 *   **Pass Criteria:**
-    *   **Strict Mode:** The face must match in **>80%** of the videos.
-    *   **Confidence Override:** If the average face confidence is **>75%**, it passes even if one video fails (accounting for bad lighting in a single clip).
+    *   Face similarity ≥ **60%**
+    *   Minimum 15 seconds recording
 *   **Output:** `verified` (Boolean), `confidence` (0-100%).
 
 ### 4.2 Agent 2: Video Quality Assurance
@@ -313,10 +336,43 @@ Use the `deploy_new.sh` script to deploy the Python backend.
 ./deploy_new.sh
 ```
 *   **Service Name:** `video-interview-api`
+*   **URL:** https://video-interview-api-wm2yb4fdna-uc.a.run.app
 *   **Configuration:** 2 CPUs, 4GB Memory (Required for Face Recognition).
 *   **Concurrency:** 80 (High concurrency allowed due to async I/O).
 
-### 6.2 Deploying the Middleware
+### 6.2 Setting Up Cloud SQL (PostgreSQL)
+Before deploying the backend, set up the database:
+
+```bash
+# 1. Enable Cloud SQL API
+gcloud services enable sqladmin.googleapis.com --project=interview-agent-479316
+
+# 2. Create PostgreSQL instance (takes 5-10 minutes)
+gcloud sql instances create interview-db \
+  --database-version=POSTGRES_15 \
+  --tier=db-f1-micro \
+  --region=us-central1 \
+  --storage-type=SSD \
+  --storage-size=10GB \
+  --project=interview-agent-479316
+
+# 3. Set database password
+gcloud sql users set-password postgres \
+  --instance=interview-db \
+  --password=YOUR_SECURE_PASSWORD \
+  --project=interview-agent-479316
+
+# 4. Create database
+gcloud sql databases create interview_db \
+  --instance=interview-db \
+  --project=interview-agent-479316
+```
+
+*   **Instance Name:** `interview-db`
+*   **Database:** `interview_db`
+*   **Connection:** Automatic via Cloud SQL Proxy from Cloud Run
+
+### 6.3 Deploying the Backend
 Use the `deploy-backend.sh` script.
 
 ```bash
@@ -324,9 +380,12 @@ cd interview-frontend-app
 ./deploy-backend.sh
 ```
 *   **Service Name:** `interview-backend`
-*   **Configuration:** 1 CPU, 512MB Memory.
+*   **URL:** https://interview-backend-wm2yb4fdna-uc.a.run.app
+*   **Configuration:** 2 CPUs, 2GB Memory.
+*   **Database:** Connected to Cloud SQL PostgreSQL via Unix socket.
+*   **Environment Variables:** `ASSESSMENT_API_URL`, `BUCKET_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_HOST`
 
-### 6.3 Deploying the Frontend
+### 6.4 Deploying the Frontend
 Use the `deploy-frontend.sh` script.
 
 ```bash
@@ -334,7 +393,21 @@ cd interview-frontend-app
 ./deploy-frontend.sh
 ```
 *   **Service Name:** `interview-frontend`
-*   **Configuration:** Static file serving (Nginx/Python http.server).
+*   **URL:** https://interview-frontend-wm2yb4fdna-uc.a.run.app/
+*   **Configuration:** 1 CPU, 512MB Memory (Python http.server).
+
+### 6.5 Deploy All Services
+Use the `deploy-all.sh` script to deploy everything at once.
+
+```bash
+cd interview-frontend-app
+./deploy-all.sh
+```
+This script will:
+1. Deploy the backend
+2. Update frontend with backend URL
+3. Deploy the frontend
+4. Display all service URLs
 
 ---
 
@@ -487,7 +560,7 @@ The prompts are optimized for **technical competency evaluation**. Key principle
 
 ### 12.3 Content Evaluation Prompts (Agent 4 - `content.py`)
 
-#### Question 1: "System Design: Design a Video Streaming Platform Like YouTube"
+#### Question 1: "How would you design a Video Streaming Platform Like YouTube."
 **Evaluation Criteria:**
 - Must mention key components: upload, processing/transcoding, storage (S3/GCS), CDN, database
 - Should discuss scalability and latency considerations

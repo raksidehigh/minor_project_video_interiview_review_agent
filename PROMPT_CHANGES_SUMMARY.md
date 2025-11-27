@@ -15,7 +15,7 @@ Updated all evaluation prompts to align with the new technical interview questio
 
 The frontend already displays the correct technical questions:
 
-1. **Question 1:** System Design: Design a Video Streaming Platform Like YouTube
+1. **Question 1:** How would you design a Video Streaming Platform Like YouTube.
 2. **Question 2:** Explain the Trade-offs Between Monolithic vs Microservices Architecture
 3. **Question 3:** How Would You Handle Authentication and Authorization in a Full Stack Application?
 4. **Question 4:** Describe Your Approach to Optimizing the Performance of a Slow Web Application
@@ -33,7 +33,7 @@ The hardcoded `INTERVIEW_QUESTIONS` array (lines 400-450) already contains the c
 INTERVIEW_QUESTIONS = [
     {
         "question_number": 1,
-        "question": "System Design: Design a Video Streaming Platform Like YouTube.",
+        "question": "How would you design a Video Streaming Platform Like YouTube.",
         "goal": "Demonstrate architectural thinking...",
         "criteria": {
             "content_check": "Keywords: upload, processing, transcoding, storage, CDN...",

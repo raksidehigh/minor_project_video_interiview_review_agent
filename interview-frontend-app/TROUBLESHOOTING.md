@@ -66,7 +66,7 @@ node server.js
 ### ✅ Fixed!
 
 Frontend now shows the correct 5 questions:
-1. System Design: Design a Video Streaming Platform Like YouTube
+1. How would you design a Video Streaming Platform Like YouTube.
 2. Explain the Trade-offs Between Monolithic vs Microservices Architecture
 3. How Would You Handle Authentication and Authorization in a Full Stack Application?
 4. Describe Your Approach to Optimizing the Performance of a Slow Web Application

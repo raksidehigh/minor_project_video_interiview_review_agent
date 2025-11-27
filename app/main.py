@@ -411,7 +411,7 @@ async def assess_interview(request: AssessmentRequest):
         INTERVIEW_QUESTIONS = [
             {
                 "question_number": 1,
-                "question": "System Design: Design a Video Streaming Platform Like YouTube.",
+                "question": "How would you design a Video Streaming Platform Like YouTube.",
                 "goal": "The candidate must demonstrate architectural thinking by outlining the journey from upload to delivery, identifying key components, and discussing scalability.",
                 "criteria": {
                     "content_check": "Keywords: upload, processing, transcoding, storage (S3/GCS), CDN, database, scalability, latency",
