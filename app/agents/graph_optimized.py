@@ -31,7 +31,6 @@ async def run_assessment_optimized(
     user_id: str,
     username: str,
     profile_pic_url: str,
-    gov_id_url: str,
     video_urls: list[str],
     interview_questions: list[dict]
 ) -> dict:
@@ -44,9 +43,8 @@ async def run_assessment_optimized(
         user_id: Unique identifier for the candidate
         username: Candidate's full name
         profile_pic_url: GCS URL to profile picture
-        gov_id_url: GCS URL to government ID
-        video_urls: List of 5 GCS URLs to videos (video_0 for identity + video_1-4 for interview)
-        interview_questions: 4 hardcoded questions
+        video_urls: List of 5 GCS URLs to videos (video_1-5 for interview)
+        interview_questions: 5 hardcoded questions
     
     Returns:
         Complete assessment results
@@ -68,7 +66,6 @@ async def run_assessment_optimized(
             resources = await prepare_user_resources(
                 user_id=user_id,
                 profile_pic_url=profile_pic_url,
-                gov_id_url=gov_id_url,
                 video_urls=video_urls
             )
             print(f"✅ Resources prepared successfully")
@@ -88,7 +85,6 @@ async def run_assessment_optimized(
             "user_id": user_id,
             "username": username,
             "profile_pic_url": profile_pic_url,
-            "gov_id_url": gov_id_url,
             "video_urls": video_urls,
             "interview_questions": interview_questions,
             "identity_verification": None,
@@ -242,7 +238,6 @@ async def run_assessment_optimized_with_fallback(
     user_id: str,
     username: str,
     profile_pic_url: str,
-    gov_id_url: str,
     video_urls: list[str],
     interview_questions: list[dict],
     use_optimized: bool = True
@@ -262,7 +257,6 @@ async def run_assessment_optimized_with_fallback(
                 user_id=user_id,
                 username=username,
                 profile_pic_url=profile_pic_url,
-                gov_id_url=gov_id_url,
                 video_urls=video_urls,
                 interview_questions=interview_questions
             )
@@ -276,7 +270,6 @@ async def run_assessment_optimized_with_fallback(
                 user_id=user_id,
                 username=username,
                 profile_pic_url=profile_pic_url,
-                gov_id_url=gov_id_url,
                 video_urls=video_urls,
                 interview_questions=interview_questions
             )
@@ -287,7 +280,6 @@ async def run_assessment_optimized_with_fallback(
             user_id=user_id,
             username=username,
             profile_pic_url=profile_pic_url,
-            gov_id_url=gov_id_url,
             video_urls=video_urls,
             interview_questions=interview_questions
         )

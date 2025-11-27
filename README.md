@@ -75,7 +75,7 @@ The API automatically discovers all files in your GCS bucket.
 
 **Required GCS Structure:**
 ```
-gs://edumentor-virtual-interview/
+gs://virtual-interview-agent/
 └── user_1/
     ├── profile_pic.jpg  (or .jpeg, .png)
     ├── gov_id.jpg       (or .jpeg, .png)
@@ -138,17 +138,17 @@ curl "https://your-service-url.run.app/api/v1/files/user_1"
 ```json
 {
   "user_id": "user_1",
-  "bucket": "edumentor-virtual-interview",
+  "bucket": "virtual-interview-agent",
   "status": "ready",
   "files_found": {
-    "profile_pic": "gs://edumentor-virtual-interview/user_1/profile_pic.jpeg",
-    "gov_id": "gs://edumentor-virtual-interview/user_1/gov_id.jpeg",
+    "profile_pic": "gs://virtual-interview-agent/user_1/profile_pic.jpeg",
+    "gov_id": "gs://virtual-interview-agent/user_1/gov_id.jpeg",
     "videos": [
-      "gs://edumentor-virtual-interview/user_1/video1.webm",
-      "gs://edumentor-virtual-interview/user_1/video2.webm",
-      "gs://edumentor-virtual-interview/user_1/video3.webm",
-      "gs://edumentor-virtual-interview/user_1/video4.webm",
-      "gs://edumentor-virtual-interview/user_1/video5.webm"
+      "gs://virtual-interview-agent/user_1/video1.webm",
+      "gs://virtual-interview-agent/user_1/video2.webm",
+      "gs://virtual-interview-agent/user_1/video3.webm",
+      "gs://virtual-interview-agent/user_1/video4.webm",
+      "gs://virtual-interview-agent/user_1/video5.webm"
     ],
     "video_count": 5
   }

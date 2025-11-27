@@ -162,22 +162,18 @@ Keep it professional, positive, and concise (3-5 sentences)."""
         concerns = []
         red_flags = []
         
-        # Identity checks (includes both name and face verification)
+        # Identity checks (face verification only, no name matching)
         identity_data_detailed = state.get('identity_verification', {})
-        name_match = identity_data_detailed.get('name_match', False)
         face_verified = identity_data_detailed.get('face_verified', False)
         
         if not identity_verified:
             red_flags.append("IDENTITY_VERIFICATION_FAILED")
-            if not name_match:
-                concerns.append(f"Name mismatch: Expected '{identity_data_detailed.get('expected_name', '')}', extracted '{identity_data_detailed.get('extracted_name', '')}'")
-                red_flags.append("NAME_MISMATCH")
             if not face_verified:
                 concerns.append("Face verification failed across video samples")
                 red_flags.append("FACE_VERIFICATION_FAILED")
         elif component_scores['identity'] >= 80:
-            if name_match and face_verified:
-                strengths.append(f"Strong identity verification: Name matched ({identity_data_detailed.get('name_similarity', 0):.1f}%), Face verified across videos")
+            if face_verified:
+                strengths.append(f"Strong identity verification: Face verified across videos ({component_scores['identity']:.1f}% confidence)")
             else:
                 strengths.append(f"Identity verification passed ({component_scores['identity']:.1f}% confidence)")
         elif component_scores['identity'] < 60:
@@ -234,15 +230,6 @@ Keep it professional, positive, and concise (3-5 sentences)."""
             strengths.append(f"High-quality audio leading to accurate transcription ({component_scores['transcription']:.0f}% confidence)")
         elif component_scores['transcription'] < 70:
             concerns.append("Poor audio quality impacting transcription accuracy")
-        
-        # Identity-specific red flags
-        identity_red_flags = identity.get('red_flags', [])
-        for flag in identity_red_flags:
-            if "AGE" in str(flag).upper():
-                red_flags.append("AGE_DISCREPANCY")
-                concerns.append("Significant age discrepancy noted between the ID photo and the person in the videos.")
-            if "GENDER" in str(flag).upper():
-                red_flags.append("GENDER_MISMATCH")
         
         # Quality-specific red flags
         quality_issues = quality.get('video_analyses', [])

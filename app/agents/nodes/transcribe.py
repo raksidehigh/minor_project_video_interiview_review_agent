@@ -76,7 +76,7 @@ def upload_audio_to_gcs(audio_path: str, user_id: str) -> str:
     import uuid
     from google.cloud import storage
     
-    bucket_name = os.getenv('GCS_BUCKET_NAME', 'edumentor-virtual-interview')
+    bucket_name = os.getenv('GCS_BUCKET_NAME', 'virtual-interview-agent')
     temp_blob_path = f"temp_transcriptions/{user_id}/{uuid.uuid4()}.flac"
     
     client = storage.Client()

@@ -22,7 +22,7 @@ fi
 PROJECT_ID="${PROJECT_ID:-your-project-id}"
 REGION="${REGION:-asia-south1}"
 SERVICE_NAME="${SERVICE_NAME:-video-interview-api}"
-BUCKET_NAME="${BUCKET_NAME:-edumentor-virtual-interview}"
+BUCKET_NAME="${BUCKET_NAME:-virtual-interview-agent}"
 IMAGE_NAME="gcr.io/${PROJECT_ID}/${SERVICE_NAME}"
 
 # Verify required variables
@@ -54,12 +54,22 @@ fi
 
 # Check if logged in
 echo "🔐 Checking authentication..."
-ACTIVE_ACCOUNT=$(gcloud auth list --filter=status:ACTIVE --format="value(account)" 2>/dev/null || echo "")
-if [ -z "$ACTIVE_ACCOUNT" ]; then
-    echo "❌ Not logged in. Running: gcloud auth login"
-    gcloud auth login
+
+# Check for service account key first
+if [ -f "service-account-key.json" ]; then
+    echo "🔑 Found service-account-key.json, authenticating..."
+    gcloud auth activate-service-account --key-file=service-account-key.json
+    ACTIVE_ACCOUNT=$(gcloud auth list --filter=status:ACTIVE --format="value(account)" 2>/dev/null || echo "")
+    echo "✅ Logged in as service account: ${ACTIVE_ACCOUNT}"
 else
-    echo "✅ Logged in as: ${ACTIVE_ACCOUNT}"
+    # Fallback to user authentication
+    ACTIVE_ACCOUNT=$(gcloud auth list --filter=status:ACTIVE --format="value(account)" 2>/dev/null || echo "")
+    if [ -z "$ACTIVE_ACCOUNT" ]; then
+        echo "❌ Not logged in. Running: gcloud auth login"
+        gcloud auth login
+    else
+        echo "✅ Logged in as: ${ACTIVE_ACCOUNT}"
+    fi
 fi
 
 # Set project
@@ -110,13 +120,13 @@ gcloud run deploy ${SERVICE_NAME} \
     --platform managed \
     --region ${REGION} \
     --allow-unauthenticated \
-    --service-account prod-deployement@${PROJECT_ID}.iam.gserviceaccount.com \
+    --service-account virtual-interview@${PROJECT_ID}.iam.gserviceaccount.com \
     --memory ${MEMORY:-8Gi} \
     --cpu ${CPU:-4} \
     --timeout ${TIMEOUT:-600} \
     --concurrency ${CONCURRENCY:-2} \
     --min-instances ${MIN_INSTANCES:-0} \
-    --max-instances ${MAX_INSTANCES:-25} \
+    --max-instances ${MAX_INSTANCES:-5} \
     --set-env-vars "GOOGLE_API_KEY=${GOOGLE_API_KEY}" \
     --set-env-vars "GOOGLE_CLOUD_PROJECT=${PROJECT_ID}" \
     --set-env-vars "BUCKET_NAME=${BUCKET_NAME}" \

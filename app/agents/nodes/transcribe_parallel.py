@@ -62,7 +62,7 @@ def upload_audio_to_gcs(audio_path: Path, user_id: str) -> str:
     """Upload audio file to GCS for BatchRecognize (Chirp 3)"""
     import uuid
     
-    bucket_name = os.getenv('GCS_BUCKET_NAME', 'edumentor-virtual-interview')
+    bucket_name = os.getenv('GCS_BUCKET_NAME', 'virtual-interview-agent')
     temp_blob_path = f"temp_transcriptions/{user_id}/{uuid.uuid4()}.flac"
     
     client = storage.Client()

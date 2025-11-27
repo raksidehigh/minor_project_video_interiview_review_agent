@@ -87,7 +87,6 @@ async def run_assessment(
     user_id: str,
     username: str,
     profile_pic_url: str,
-    gov_id_url: str,
     video_urls: list[str],
     interview_questions: list[dict]
 ) -> dict:
@@ -96,11 +95,10 @@ async def run_assessment(
     
     Args:
         user_id: Unique identifier for the candidate
-        username: Candidate's full name (to verify against government ID)
+        username: Candidate's full name
         profile_pic_url: GCS URL to profile picture
-        gov_id_url: GCS URL to government ID photo
-        video_urls: List of GCS URLs to videos (video_0 for identity + video_1-4 for interview)
-        interview_questions: 4 hardcoded questions with evaluation criteria
+        video_urls: List of GCS URLs to videos (video_1-5 for interview)
+        interview_questions: 5 hardcoded questions with evaluation criteria
     
     Returns:
         Complete assessment results with all agent outputs
@@ -114,7 +112,6 @@ async def run_assessment(
         "user_id": user_id,
         "username": username,
         "profile_pic_url": profile_pic_url,
-        "gov_id_url": gov_id_url,
         "video_urls": video_urls,
         "interview_questions": interview_questions,
         "identity_verification": None,

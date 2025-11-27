@@ -776,7 +776,7 @@ Keep it professional and concise (3-4 sentences).
 
 **GCS Bucket Structure:**
 ```
-gs://edumentor-virtual-interview/
+gs://virtual-interview-agent/
 └── {user_id}/
     ├── profile_images/
     │   └── [UUID]/profile_pic.jpg (or .jpeg, .png)

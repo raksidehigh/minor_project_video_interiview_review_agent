@@ -218,7 +218,6 @@ async def download_videos_parallel(
 async def prepare_user_resources(
     user_id: str,
     profile_pic_url: str,
-    gov_id_url: str,
     video_urls: List[str]
 ) -> Dict[str, any]:
     """
@@ -227,8 +226,7 @@ async def prepare_user_resources(
     Args:
         user_id: User identifier
         profile_pic_url: GCS URL to profile picture
-        gov_id_url: GCS URL to government ID
-        video_urls: List of 5 GCS URLs to videos (video_0 for identity + video_1-4 for interview)
+        video_urls: List of 5 GCS URLs to videos (video_1-5 for interview)
     
     Returns:
         Dictionary with workspace and all local paths
@@ -241,23 +239,20 @@ async def prepare_user_resources(
     try:
         # Download images and videos in parallel
         profile_pic_path = workspace.get_image_path("profile_pic.jpg")
-        gov_id_path = workspace.get_image_path("gov_id.jpg")
         
         # Download everything in parallel
         download_tasks = [
             download_from_gcs(profile_pic_url, profile_pic_path),
-            download_from_gcs(gov_id_url, gov_id_path),
             download_videos_parallel(video_urls, workspace)
         ]
         
-        profile_pic, gov_id, video_paths = await asyncio.gather(*download_tasks)
+        profile_pic, video_paths = await asyncio.gather(*download_tasks)
         
         logger.info(f"✅ PHASE 1 COMPLETE: All resources downloaded to {workspace.workspace}")
         
         return {
             "workspace": workspace,
             "profile_pic": profile_pic,
-            "gov_id": gov_id,
             "videos": video_paths,
             "video_count": len(video_paths)
         }

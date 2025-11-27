@@ -62,7 +62,7 @@ def force_cleanup():
     except Exception as e:
         print(f"⚠️  Garbage collection warning: {e}")
 
-def discover_user_files(user_id: str, bucket_name: str = "edumentor-virtual-interview") -> Dict[str, Any]:
+def discover_user_files(user_id: str, bucket_name: str = "virtual-interview-agent") -> Dict[str, Any]:
     """
     Automatically discover user files in GCS bucket
     
@@ -70,9 +70,8 @@ def discover_user_files(user_id: str, bucket_name: str = "edumentor-virtual-inte
     gs://bucket_name/user_id/
         ├── profile_images/
         │   └── [UUID]/profile_pic.jpg (or .jpeg, .png)
-        ├── documents/
-        │   └── gov_id/
-        │       └── [UUID]/gov_id.jpg (or .jpeg, .png)
+        ├── profile_images/
+        │   └── [UUID]/profile_pic.jpg (or .jpeg, .png)
         └── interview_videos/
             ├── video_0.webm (or .mp4, .avi, .mov)
             ├── video_1.webm
@@ -84,15 +83,15 @@ def discover_user_files(user_id: str, bucket_name: str = "edumentor-virtual-inte
     Also supports flat structure:
     gs://bucket_name/user_id/
         ├── profile_pic.jpg
-        ├── gov_id.jpg
+        ├── profile_pic.jpg
         └── video_*.webm
     
     Args:
         user_id: User ID to look up
-        bucket_name: GCS bucket name (default: edumentor-virtual-interview)
+        bucket_name: GCS bucket name (default: virtual-interview-agent)
     
     Returns:
-        dict with profile_pic_url, gov_id_url, video_urls
+        dict with profile_pic_url, video_urls
     
     Raises:
         HTTPException if required files not found
@@ -133,7 +132,6 @@ def discover_user_files(user_id: str, bucket_name: str = "edumentor-virtual-inte
         # Organize files by type
         # Based on actual structure: user_id/profile_images/, user_id/documents/gov_id/, user_id/interview_videos/
         profile_pic = None
-        gov_id = None
         videos = []
         
         for blob in blobs:
@@ -174,23 +172,9 @@ def discover_user_files(user_id: str, bucket_name: str = "edumentor-virtual-inte
                         print(f"   ✅ Matched profile_pic (by filename): {blob.name}")
                         is_profile = True
                 
-                # If not a profile pic, check for gov_id
-                if not is_profile:
-                    if ("documents/gov_id" in relative_path.lower() or 
-                        "documents/govt_id" in relative_path.lower() or
-                        "/gov_id/" in relative_path.lower()):
-                        if not gov_id:  # Take first match
-                            gov_id = f"gs://{bucket_name}/{blob.name}"
-                            print(f"   ✅ Matched gov_id: {blob.name}")
-                    # Fallback: check filename pattern
-                    elif (base_filename.startswith("gov_id") or 
-                          base_filename.startswith("govt_id") or 
-                          base_filename.startswith("government_id") or
-                          (base_filename.startswith("id") and len(base_filename.split('_')[0]) <= 3) or
-                          ("gov" in base_filename and "id" in base_filename)):
-                        if not gov_id:
-                            gov_id = f"gs://{bucket_name}/{blob.name}"
-                            print(f"   ✅ Matched gov_id (by filename): {blob.name}")
+                        print(f"   ✅ Matched profile_pic (by filename): {blob.name}")
+                        is_profile = True
+                
                 continue
             
             # Videos: Look in interview_videos/ subdirectory
@@ -207,14 +191,12 @@ def discover_user_files(user_id: str, bucket_name: str = "edumentor-virtual-inte
                 continue
         
         # Debug: Print what was matched
-        print(f"   📊 Summary: profile_pic={bool(profile_pic)}, gov_id={bool(gov_id)}, videos={len(videos)}")
+        print(f"   📊 Summary: profile_pic={bool(profile_pic)}, videos={len(videos)}")
         
         # Validate required files
         missing = []
         if not profile_pic:
             missing.append("profile_pic")
-        if not gov_id:
-            missing.append("gov_id")
         
         # NEW: Expect 6 videos (video_0 for identity + video_1-5 for interview)
         if len(videos) < 6:
@@ -234,7 +216,6 @@ def discover_user_files(user_id: str, bucket_name: str = "edumentor-virtual-inte
         
         return {
             "profile_pic_url": profile_pic,
-            "gov_id_url": gov_id,
             "video_urls": videos
         }
     
@@ -252,10 +233,10 @@ def discover_user_files(user_id: str, bucket_name: str = "edumentor-virtual-inte
 class AssessmentRequest(BaseModel):
     """Request model for interview assessment - Simplified API"""
     user_id: str = Field(..., description="Unique identifier for the candidate (folder name in GCS)")
-    username: str = Field(..., description="Candidate's full name (to verify against government ID)")
+    username: str = Field(..., description="Candidate's full name")
     bucket_name: Optional[str] = Field(
-        "edumentor-virtual-interview",
-        description="GCS bucket name (default: edumentor-virtual-interview)"
+        "virtual-interview-agent",
+        description="GCS bucket name (default: virtual-interview-agent)"
     )
     
     class Config:
@@ -403,11 +384,9 @@ async def assess_interview(request: AssessmentRequest):
             files = discover_user_files(request.user_id, request.bucket_name)
             logger.info(f"✅ [MAIN] File discovery successful:")
             logger.info(f"   - Profile pic found: {bool(files.get('profile_pic_url'))}")
-            logger.info(f"   - Gov ID found: {bool(files.get('gov_id_url'))}")
             logger.info(f"   - Videos found: {len(files.get('video_urls', []))}")
             print(f"   ✅ Found files:")
             print(f"      - profile_pic: {files['profile_pic_url']}")
-            print(f"      - gov_id: {files['gov_id_url']}")
             print(f"      - videos: {len(files['video_urls'])} files")
             for i, url in enumerate(files['video_urls'], 1):
                 print(f"         {i}. {url}")
@@ -428,55 +407,56 @@ async def assess_interview(request: AssessmentRequest):
             )
         print(f"   ✅ GOOGLE_API_KEY present")
         
-        # Hardcoded interview questions for Ambassador Program
+        # Hardcoded interview questions for Full Stack Developer Role
         INTERVIEW_QUESTIONS = [
             {
                 "question_number": 1,
-                "question": "Please introduce yourself and tell us about your academic background.",
-                "goal": "The candidate must clearly state their name, a specific top-tier university, and their field of study in a confident manner.",
+                "question": "System Design: Design a Video Streaming Platform Like YouTube.",
+                "goal": "The candidate must demonstrate architectural thinking by outlining the journey from upload to delivery, identifying key components, and discussing scalability.",
                 "criteria": {
-                    "content_check": "Specific university name from approved list and specific major",
-                    "clarity_check": "Direct speech, free of excessive filler words",
-                    "sentiment_check": "Professional and confident (neutral to positive)"
+                    "content_check": "Keywords: upload, processing, transcoding, storage (S3/GCS), CDN, database, scalability, latency",
+                    "clarity_check": "Structured approach (requirements -> high-level design -> components)",
+                    "sentiment_check": "Confident and analytical"
                 }
             },
             {
                 "question_number": 2,
-                "question": "What motivated you to apply for our Ambassador Program?",
-                "goal": "The candidate must express genuine, mission-aligned passion for helping students, not just personal gain.",
+                "question": "Explain the Trade-offs Between Monolithic vs Microservices Architecture.",
+                "goal": "The candidate must compare simplicity vs. flexibility, discuss organizational impact, and explain that the choice depends on the context.",
                 "criteria": {
-                    "content_check": "Keywords: help, guide, give back, share my experience",
-                    "sentiment_check": "Highly positive and enthusiastic",
-                    "sincerity_check": "Facial expressions align with positive words"
+                    "content_check": "Keywords: simplicity, deployment, scaling, complexity, team size, maintenance, coupling",
+                    "clarity_check": "Clear comparison of pros and cons for both",
+                    "sentiment_check": "Balanced and objective"
                 }
             },
             {
                 "question_number": 3,
-                "question": "Describe a time when you helped someone learn something new.",
-                "goal": "The candidate must demonstrate patience, empathy, and a structured approach to teaching.",
+                "question": "How Would You Handle Authentication and Authorization in a Full Stack Application?",
+                "goal": "The candidate must distinguish between AuthN (who) and AuthZ (what), discuss token (JWT) vs. session strategies, and address security.",
                 "criteria": {
-                    "content_check": "Clear process (Problem -> Action -> Result), empathy keywords: patience, listened, explained",
-                    "sentiment_check": "Helpful and positive"
+                    "content_check": "Keywords: JWT, session, OAuth, role-based access control (RBAC), security, HTTPS, cookies vs local storage",
+                    "clarity_check": "Clear distinction between authentication and authorization",
+                    "sentiment_check": "Professional and knowledgeable"
                 }
             },
             {
                 "question_number": 4,
-                "question": "How do you handle challenging situations or difficult students?",
-                "goal": "The candidate must show a mature, calm, and solution-oriented approach, not a blaming one.",
+                "question": "Describe Your Approach to Optimizing the Performance of a Slow Web Application.",
+                "goal": "The candidate must describe a systematic approach starting with measurement/profiling, then optimizing across layers (frontend, backend, DB).",
                 "criteria": {
-                    "content_check": "Positive actions: listen, understand, empathize, find a solution",
-                    "red_flag_check": "No negative words: lazy, stupid, their fault",
-                    "sentiment_check": "Calm and professional (neutral-to-positive)"
+                    "content_check": "Keywords: profiling, measuring, caching, database indexing, bundle size, CDN, lazy loading, queries",
+                    "clarity_check": "Logical flow: Measure -> Identify -> Optimize",
+                    "sentiment_check": "Problem-solving oriented"
                 }
             },
             {
                 "question_number": 5,
-                "question": "What are your goals as a mentor and how do you plan to achieve them?",
-                "goal": "The candidate must show forward-looking, aspirational goals with concrete action plans.",
+                "question": "How Would You Design a Real-time Notification System?",
+                "goal": "The candidate must choose appropriate tech (WebSockets/SSE), consider architecture for concurrency, and address reliability.",
                 "criteria": {
-                    "content_check": "Action-oriented words: plan, create, organize, develop, implement, build, establish",
-                    "specific_actions": "Specific actions: weekly, daily, monthly, check-in, meeting, resource, guide",
-                    "sentiment_check": "Forward-looking, confident, aspirational with concrete plan"
+                    "content_check": "Keywords: WebSockets, Socket.io, Server-Sent Events (SSE), polling, message queue (Redis/Kafka), reliability",
+                    "clarity_check": "Technical choice justification and architectural components",
+                    "sentiment_check": "Confident in technical choices"
                 }
             }
         ]
@@ -498,7 +478,6 @@ async def assess_interview(request: AssessmentRequest):
             logger.info(f"   - User ID: {request.user_id}")
             logger.info(f"   - Username: {request.username}")
             logger.info(f"   - Profile Pic: {files['profile_pic_url']}")
-            logger.info(f"   - Gov ID: {files['gov_id_url']}")
             logger.info(f"   - Videos: {len(files['video_urls'])} files")
             logger.info(f"   - Interview Questions: {len(INTERVIEW_QUESTIONS)}")
             
@@ -506,7 +485,6 @@ async def assess_interview(request: AssessmentRequest):
                 user_id=request.user_id,
                 username=request.username,
                 profile_pic_url=files['profile_pic_url'],
-                gov_id_url=files['gov_id_url'],
                 video_urls=files['video_urls'],
                 interview_questions=INTERVIEW_QUESTIONS,
                 use_optimized=use_optimized
@@ -664,7 +642,7 @@ async def assess_interview(request: AssessmentRequest):
 
 
 @app.get("/api/v1/files/{user_id}")
-async def check_user_files(user_id: str, bucket_name: str = "edumentor-virtual-interview"):
+async def check_user_files(user_id: str, bucket_name: str = "virtual-interview-agent"):
     """
     Check what files exist for a user in GCS bucket
     
@@ -672,7 +650,7 @@ async def check_user_files(user_id: str, bucket_name: str = "edumentor-virtual-i
     
     Args:
         user_id: User ID to check
-        bucket_name: GCS bucket name (default: edumentor-virtual-interview)
+        bucket_name: GCS bucket name (default: virtual-interview-agent)
     
     Returns:
         Files found for the user
@@ -685,7 +663,6 @@ async def check_user_files(user_id: str, bucket_name: str = "edumentor-virtual-i
             "status": "ready",
             "files_found": {
                 "profile_pic": files['profile_pic_url'],
-                "gov_id": files['gov_id_url'],
                 "videos": files['video_urls'],
                 "video_count": len(files['video_urls'])
             }

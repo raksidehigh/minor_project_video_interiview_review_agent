@@ -589,34 +589,16 @@ async def verify_identity_parallel(resources: Dict, state: InterviewState) -> In
     print(f"🔍 [IDENTITY] Starting identity verification...")
     
     try:
-        # Step 1: Extract name from government ID (sequential, only 1 API call)
-        print(f"🔍 [IDENTITY] Step 1: Extracting name from gov ID...")
-        gov_id_path = resources['gov_id']
-        extracted_text = extract_text_from_image(gov_id_path)
-        extracted_name = extract_name_from_text(extracted_text)
+        # Step 1: Name verification removed (no gov ID)
+        print(f"🔍 [IDENTITY] Skipping name extraction (no gov ID)")
+        name_match_score = 100.0  # Default pass
+        extracted_name = state['username']  # Use provided username
         
-        # Log FULL OCR text extracted from government ID
-        logger.info(f"📄 [IDENTITY] FULL OCR Text extracted from government ID for user_id={state.get('user_id', 'unknown')}:")
-        logger.info(f"   {'='*80}")
-        if extracted_text:
-            logger.info(f"   Full OCR Text (length: {len(extracted_text)} characters):")
-            logger.info(f"   {extracted_text}")
-        else:
-            logger.warning(f"   ⚠️  NO TEXT DETECTED from government ID!")
-        logger.info(f"   {'='*80}")
-        
-        print(f"🔍 [IDENTITY] Extracted name: {extracted_name}")
+        print(f"🔍 [IDENTITY] Using provided name: {extracted_name}")
         
         expected_name = state['username']
-        
-        logger.info(f"📝 [IDENTITY] Starting name matching:")
-        logger.info(f"   - Expected Name (from username): '{expected_name}'")
-        logger.info(f"   - Extracted Name (from OCR): '{extracted_name}'")
-        logger.info(f"   - Full OCR Text will be used for word-by-word matching")
-        logger.info(f"   - OCR Text Length: {len(extracted_text)} characters")
-        
-        name_similarity = calculate_name_similarity(expected_name, extracted_name, extracted_text)
-        name_match = bool(name_similarity >= 50.0)  # 50% similarity threshold (changed from 70%)
+        name_similarity = 100.0  # Perfect match since we use provided name
+        name_match = True
         
         logger.info(f"✅ [IDENTITY] Name matching complete:")
         logger.info(f"   - Similarity: {name_similarity:.1f}%")
@@ -673,10 +655,9 @@ async def verify_identity_parallel(resources: Dict, state: InterviewState) -> In
             "extracted_name": extracted_name,
             "expected_name": expected_name,
             "face_verified": face_verified,
-            "video_0_only": True,  # Flag indicating we only checked video_0
+            "video_0_only": True,
             "face_confidence": face_confidence,
-            "video_results": video_results,
-            "ocr_text": extracted_text[:500]
+            "video_results": video_results
         }
         
         # NEW: Trigger webhook for identity failure (human-in-loop)
