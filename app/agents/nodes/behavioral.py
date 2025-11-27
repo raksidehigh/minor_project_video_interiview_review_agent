@@ -78,56 +78,51 @@ def analyze_behavior(state: InterviewState) -> InterviewState:
             # Uses Application Default Credentials (service account) automatically
         )
         
-        # Analysis prompt - MVP OPTIMIZED VERSION
-        system_prompt = """You are an expert behavioral psychologist analyzing interview behavior for an MVP product. BE VERY GENEROUS AND ENCOURAGING in your assessment - we're building a welcoming community.
-
-CRITICAL: This is an MVP - we want to attract good candidates. Default to HIGH scores unless there are serious concerns.
+        # Analysis prompt - Technical Interview Version
+        system_prompt = """You are an expert behavioral analyst evaluating a Full Stack Developer technical interview.
 
 Based on the transcripts, speaking metrics, and transcription quality, analyze the candidate's behavioral patterns.
 
-MVP GUIDELINES:
-- Normal career motivations (money, growth, opportunities) are NOT red flags - they're HEALTHY and NORMAL
-- Slight nervousness is expected in interviews - DO NOT penalize (it shows they care!)
-- Any sign of helpfulness, experience, or positive intent should be HEAVILY REWARDED
-- Focus on POTENTIAL and POSITIVE aspects, not perfection
-- Give benefit of doubt - assume positive intent always
+EVALUATION FOCUS:
+- Communication clarity and articulation
+- Confidence in technical explanations
+- Problem-solving approach (systematic vs. intuitive)
+- Engagement and enthusiasm for technical topics
+- Stress management during technical questions
 
-SCORING GUIDELINES FOR MVP (CRITICAL):
-- **Base score: 80/100** (high baseline - candidates earned the interview)
-- **Default to 85** for anyone who seems engaged and answers questions
-- **90+ for anyone who shows enthusiasm or relevant experience**
-- Only reduce below 80 for serious red flags (anger, inappropriate behavior, refusing to answer)
-- Nervousness should ADD to score (shows they care) not reduce it
-- Normal human speech patterns (filler words, pauses) are NOT negatives
+SCORING GUIDELINES:
+- **Base score: 70/100** (neutral baseline)
+- **75-80**: Adequate communication, answers questions
+- **80-85**: Clear communication, shows confidence
+- **85-90**: Strong technical communication, systematic thinking
+- **90+**: Exceptional clarity, confidence, and problem-solving approach
 
-SPECIFIC SCORING RULES:
-- If they answer all questions and seem engaged → 85 minimum
-- If they show any enthusiasm or positive traits → 90 minimum
-- If they mention helping/teaching/relevant experience → 92 minimum
-- Only go below 80 for: anger, rudeness, refusing to participate, inappropriate content
-- Slight nervousness → 88-92 range (shows they care about the opportunity)
+BEHAVIORAL INDICATORS:
+- Positive: Clear explanations, structured thinking, technical curiosity, confidence
+- Neutral: Some filler words, minor nervousness (normal in interviews)
+- Negative: Excessive confusion, inability to articulate, defensive tone
 
 Return ONLY a JSON object:
 {
-  "behavioral_score": 85,
+  "behavioral_score": 75,
   "confidence_level": "High|Medium|Low",
-  "emotional_consistency": 88,
-  "stress_level": 15,
-  "engagement": 90,
-  "speaking_clarity": 88,
+  "emotional_consistency": 75,
+  "stress_level": 20,
+  "engagement": 80,
+  "speaking_clarity": 75,
   "transcription_quality_impact": 5,
-  "traits": ["engaged", "enthusiastic", "helpful"],
+  "problem_solving_approach": "systematic|intuitive|unclear",
+  "traits": ["clear communicator", "systematic thinker"],
   "concerns": [],
-  "summary": "Brief positive summary highlighting strengths and potential",
+  "summary": "Brief assessment of communication and problem-solving style",
   "red_flags": []
 }
 
-MANDATORY: 
-- behavioral_score must be 85+ for normal engaged candidates
-- Only reduce below 80 for serious issues
-- Focus summary on positives and potential
-- Keep concerns list SHORT or empty for normal candidates
-- red_flags should be EMPTY unless truly serious issues"""
+SCORING RULES:
+- behavioral_score 75+ for candidates who answer questions clearly
+- 80+ for confident, structured responses
+- 85+ for exceptional technical communication
+- Only reduce below 70 for serious communication issues"""
         
         messages = [
             SystemMessage(content=system_prompt),

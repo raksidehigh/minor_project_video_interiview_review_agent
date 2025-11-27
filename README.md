@@ -1,23 +1,31 @@
 # Video Interview Assessment System: Comprehensive Technical Documentation
 
-**Version:** 2.0.0
-**Last Updated:** November 2025
-**Author:** AI Engineering Team
+**Version:** 2.2.0
+**Last Updated:** November 27, 2025
+**Authors:** Rakshit Jain ([@raksidehigh](https://github.com/raksidehigh)), Hitesh Joshi ([@thehiteshjoshi](https://github.com/thehiteshjoshi))
+**Interview Type:** Full Stack Developer Technical Assessment
 
 ---
 
 ## 1. Executive Summary
 
-The **Video Interview Assessment System** is a state-of-the-art, AI-powered platform designed to automate the preliminary rounds of candidate interviewing. By leveraging a sophisticated multi-agent architecture, the system evaluates candidates not just on what they say, but on how they say it, providing a holistic assessment of technical knowledge, communication skills, and behavioral traits.
+The **Video Interview Assessment System** is a state-of-the-art, AI-powered platform designed to automate technical screening interviews for Full Stack Developer positions. By leveraging a sophisticated multi-agent architecture, the system evaluates candidates on their technical knowledge, problem-solving approach, system design thinking, and communication skills.
 
 Traditional hiring processes are often bottlenecked by the manual review of initial screening videos. This system eliminates that bottleneck by providing instant, objective, and deep analysis of candidate responses. It employs a **3-Tier Architecture** comprising a responsive Frontend, a robust Node.js Middleware, and a high-performance Python AI Assessment Agent.
 
 ### Key Capabilities
 *   **Automated Identity Verification:** Uses advanced facial recognition (ArcFace/DeepFace) to ensure the candidate in the video matches their profile picture across all interview responses.
 *   **Technical Content Evaluation:** Analyzes the semantic depth of answers against specific technical criteria using Large Language Models (Gemini 2.5 Flash).
-*   **Behavioral Profiling:** Assesses soft skills, confidence, and communication clarity using psychological markers.
+*   **Behavioral Profiling:** Assesses communication clarity, confidence, and problem-solving approach using psychological markers.
 *   **Video Quality Assurance:** Automatically checks for lighting, resolution, and audio clarity to ensure assessment validity.
 *   **Optimized Performance:** Features a parallel processing pipeline that reduces assessment time from 5 minutes to under 45 seconds per candidate.
+
+### Interview Questions (Full Stack Developer)
+1. **System Design:** Design a Video Streaming Platform Like YouTube
+2. **Architecture:** Explain the Trade-offs Between Monolithic vs Microservices Architecture
+3. **Security:** How Would You Handle Authentication and Authorization in a Full Stack Application?
+4. **Performance:** Describe Your Approach to Optimizing the Performance of a Slow Web Application
+5. **Real-time Systems:** How Would You Design a Real-time Notification System?
 
 ### Business Value
 *   **90% Reduction in Screening Time:** Recruiters receive a finalized report with Pass/Fail recommendations instantly.
@@ -207,26 +215,31 @@ The core intelligence of the system resides in its 6-agent workflow. Each agent 
 *   **Optimization:** Runs in parallel with Identity and Quality checks to minimize latency.
 
 ### 4.4 Agent 4: Technical Content Evaluation
-**Goal:** Assess the *correctness* and *depth* of the candidate's answers.
+**Goal:** Assess the *correctness* and *depth* of the candidate's technical answers.
 
 *   **Technology Stack:** Google Gemini 2.5 Flash.
-*   **Input:** Transcripts + Question Context + Ideal Answer Criteria.
+*   **Input:** Transcripts + Question Context + Technical Criteria.
 *   **Logic:**
-    *   The agent evaluates each answer against specific **Keywords**, **Clarity**, and **Relevance**.
-    *   **Scoring:** 0-100 scale per question.
-    *   **MVP Optimization:** The prompt is engineered to be "welcoming," avoiding harsh penalties for minor phrasing issues.
+    *   The agent evaluates each answer against specific **Technical Components**, **Clarity**, and **Depth**.
+    *   **Question-Specific Evaluation:**
+        *   **Q1 (System Design):** Architecture components (upload, storage, CDN, database), scalability
+        *   **Q2 (Architecture):** Comparison of monolithic vs microservices, trade-offs, context awareness
+        *   **Q3 (Auth/AuthZ):** Distinction between authentication/authorization, JWT/sessions, security practices
+        *   **Q4 (Performance):** Systematic approach (measure → optimize), multi-layer optimization
+        *   **Q5 (Real-time):** Technology choice (WebSockets/SSE), architecture, reliability
+    *   **Scoring:** 0-100 scale per question, pass threshold: 60/100.
 *   **Weightage:** Contributes **70%** to the Final Score.
 
 ### 4.5 Agent 5: Behavioral Analysis
-**Goal:** Evaluate soft skills and cultural fit.
+**Goal:** Evaluate communication skills and problem-solving approach.
 
 *   **Technology Stack:** Google Gemini 2.5 Flash.
 *   **Input:** Transcripts + Tone/Sentiment Analysis.
 *   **Dimensions Analyzed:**
     1.  **Communication Clarity:** Is the candidate articulate?
     2.  **Confidence:** Do they speak with conviction?
-    3.  **Structure:** Is the answer logically organized (STAR method)?
-    4.  **Enthusiasm:** Do they show genuine interest?
+    3.  **Structure:** Is the answer logically organized?
+    4.  **Problem-Solving Approach:** Systematic vs intuitive thinking
 *   **Weightage:** Contributes **30%** to the Final Score.
 
 ### 4.6 Agent 6: Decision Aggregation
@@ -465,99 +478,97 @@ gs://virtual-interview-agent/
 *   **Behavioral Analysis (Agent 5):** `gemini-2.5-flash` (Temperature: 0.3)
 *   **Decision Reasoning (Agent 6):** `gemini-2.5-flash` (Temperature: 0.3)
 
-### 12.2 MVP Philosophy: "Generous Scoring"
-The prompts are **MVP-optimized** to be **extremely welcoming and encouraging**. Key principles:
-*   **Default to PASS:** Automatic 100 score if ANY positive keywords detected.
-*   **Normal motivations are POSITIVE:** Monetization, career growth, opportunities are **NOT red flags**.
-*   **Slight nervousness shows they care:** Do NOT penalize nervous candidates.
-*   **Focus on POTENTIAL:** Assume positive intent always.
+### 12.2 Evaluation Philosophy: "Technical Depth Assessment"
+The prompts are optimized for **technical competency evaluation**. Key principles:
+*   **Pass Threshold:** 60/100 per question (balanced for technical assessment)
+*   **Focus on Understanding:** Evaluate conceptual understanding, not perfect recall
+*   **Systematic Thinking:** Reward structured, logical approaches to problems
+*   **Technical Depth:** Bonus points for discussing trade-offs, scalability, and best practices
 
 ### 12.3 Content Evaluation Prompts (Agent 4 - `content.py`)
 
-#### Question 1: "Introduce yourself and tell us about your academic background"
-**LLM Prompt (Excerpt from code):**
+#### Question 1: "System Design: Design a Video Streaming Platform Like YouTube"
+**Evaluation Criteria:**
+- Must mention key components: upload, processing/transcoding, storage (S3/GCS), CDN, database
+- Should discuss scalability and latency considerations
+- Structured approach: requirements → high-level design → components
+
+**Scoring Logic:**
+```python
+# Technical Content (70%)
+content_score = min(70, technical_depth * 0.7)
+
+# Clarity (20%)
+clarity_score = 20 if not excessive_fillers else 10
+
+# Communication (10%)
+communication_score = 10 if sentiment != 'negative' else 5
+
+# Pass threshold: 60/100
+overall_passed = score >= 60
 ```
-BE EXTREMELY WELCOMING - we want to encourage candidates who show ANY positive intent.
 
-CRITICAL MVP RULES:
-1. If they mention ANYTHING about education, university, college → AUTOMATIC PASS
-2. If they mention their name and ANY academic-related word → AUTOMATIC PASS
-3. Vague references like "I studied", "my college" → ALL ACCEPTABLE
-4. Even if they just say their name and mention being a student → PASS
-5. Only FAIL if completely irrelevant with zero educational context
+#### Question 2: "Explain the Trade-offs Between Monolithic vs Microservices Architecture"
+**Evaluation Criteria:**
+- Must compare both architectures
+- Should discuss: simplicity, deployment, scaling, complexity, team size, maintenance
+- Context-dependent reasoning (choice depends on situation)
 
-GENEROUS INTERPRETATION:
-- "I'm studying" = mentions field of study ✓
-- "I go to university" = mentions institution ✓
-- Any subject name (math, science, etc.) = field of study ✓
+#### Question 3: "How Would You Handle Authentication and Authorization in a Full Stack Application?"
+**Evaluation Criteria:**
+- Must distinguish between authentication (who) and authorization (what)
+- Should mention: JWT, sessions, OAuth, RBAC, security best practices
+- Security-conscious approach (HTTPS, token storage)
 
-SCORING GUIDANCE:
-- ANY educational context → intent_positive_percentage = 75+
-- Mentions university OR field → intent = 85+
-- Only completely off-topic → intent < 50
-```
+#### Question 4: "Describe Your Approach to Optimizing the Performance of a Slow Web Application"
+**Evaluation Criteria:**
+- Must describe systematic approach: Measure → Identify → Optimize
+- Should mention: profiling, caching, database indexing, bundle size, CDN, lazy loading
+- Multi-layer optimization (frontend, backend, database)
+
+#### Question 5: "How Would You Design a Real-time Notification System?"
+**Evaluation Criteria:**
+- Must choose appropriate technology: WebSockets, Socket.io, SSE, or polling
+- Should discuss: concurrency, message queues (Redis/Kafka), reliability
+- Architectural components and scalability considerations
 
 **Scoring Logic (from `content.py`):**
 ```python
-# Answer Relevance (70%)
-answer_relevance_score = 70 if passed else 65
+# Technical Content (70%)
+content_score = min(70, technical_depth * 0.7)
 
-# Clarity (30%): Filler threshold = 30 (very lenient)
-clarity_score = 35 if filler_count < 30 else 30
+# Clarity (20%)
+clarity_score = 20 if not excessive_fillers else 10
 
-# Keywords (10%): Sentiment not negative
-keywords_score = 12 if sentiment != 'negative' else 10
+# Communication (10%)
+communication_score = 10 if sentiment != 'negative' else 5
 
-# MVP Override: If answer shows 40% intent → FULL MARKS (100)
-if minimal_relevance and intent >= 40:
-    score = 100
-    overall_passed = True
-```
-
-#### Question 2: "What motivated you to apply?"
-**Ultra-Lenient MVP Rules (from `content.py`):**
-```
-🎯 ULTRA-LENIENT MVP RULES (MANDATORY):
-1. **ANY MENTION OF HELPING = AUTOMATIC 100**: "help", "assist" → INSTANT PASS
-2. **MONETIZATION IS EXCELLENT**: "get paid", "earn" → POSITIVE, NEVER red flags
-3. **COMBINATION = PERFECT**: Helping + Money = IDEAL (realistic!)
-4. **ANY PROGRAM INTEREST = PASS**: Vague interest → 90+ score
-5. **GIVE 100 BY DEFAULT**: Unless hostile or off-topic
-
-🚫 NEVER FLAG AS RED FLAGS:
-- "monetize", "get monetized", "earn money", "financial benefit"
-- Any realistic motivations - HEALTHY and NORMAL
-
-✅ AUTOMATIC 100 IF:
-- Mentions helping words (help, assist, support, contribute)
-- Shows interest in program
-- Mentions ANY positive motivation
-
-❌ ONLY FAIL IF:
-- Explicitly hostile
-- Completely off-topic
-- Refuses to answer
+# Pass threshold: 60/100
+overall_passed = score >= 60 or llm_passed
 ```
 
 ### 12.4 Behavioral Analysis Prompt (Agent 5 - `behavioral.py`)
 ```
-BE VERY GENEROUS in your assessment - we're building a welcoming community.
+You are an expert behavioral analyst evaluating a Full Stack Developer technical interview.
 
-MVP GUIDELINES:
-- Normal career motivations (money, growth) are NOT red flags - HEALTHY!
-- Slight nervousness is EXPECTED - shows they care!
-- Any sign of helpfulness should be HEAVILY REWARDED
-- Focus on POTENTIAL, not perfection
+EVALUATION FOCUS:
+- Communication clarity and articulation
+- Confidence in technical explanations
+- Problem-solving approach (systematic vs. intuitive)
+- Engagement and enthusiasm for technical topics
+- Stress management during technical questions
 
-SCORING GUIDELINES (CRITICAL):
-- **Base score: 80/100** (high baseline)
-- **Default to 85** for engaged candidates
-- **90+ for enthusiasm or relevant experience**
-- Only reduce below 80 for serious issues
+SCORING GUIDELINES:
+- **Base score: 70/100** (neutral baseline)
+- **75-80**: Adequate communication, answers questions
+- **80-85**: Clear communication, shows confidence
+- **85-90**: Strong technical communication, systematic thinking
+- **90+**: Exceptional clarity, confidence, and problem-solving approach
 
-MANDATORY:
-- behavioral_score must be 85+ for normal engaged candidates
-- Only reduce below 80 for anger, rudeness, or refusal to participate
+BEHAVIORAL INDICATORS:
+- Positive: Clear explanations, structured thinking, technical curiosity, confidence
+- Neutral: Some filler words, minor nervousness (normal in interviews)
+- Negative: Excessive confusion, inability to articulate, defensive tone
 ```
 
 ---

@@ -126,12 +126,12 @@ def batched_evaluation(state: InterviewState) -> InterviewState:
 
 def build_batched_prompt(transcripts: List[Dict], questions: List[Dict], identity_data: Dict) -> str:
     """
-    Build comprehensive prompt for batched evaluation
+    Build comprehensive prompt for batched evaluation - Full Stack Developer Interview
     """
     
-    # Build transcript section
+    # Build transcript section (skip video_0, use video_1-5)
     transcripts_text = ""
-    for i, t in enumerate(transcripts, 1):
+    for i, t in enumerate(transcripts[1:6], 1):  # Skip first video (identity), use next 5
         transcript = t.get('transcript', '')
         transcripts_text += f"\n**Question {i} Response:**\n{transcript}\n"
     
@@ -146,7 +146,7 @@ def build_batched_prompt(transcripts: List[Dict], questions: List[Dict], identit
     # Identity context
     identity_text = f"Identity Verified: {identity_data.get('verified', False)}, Confidence: {identity_data.get('confidence', 0):.1f}%"
     
-    prompt = f"""You are evaluating an Ambassador Program interview. Analyze ALL 4 questions and behavioral patterns in ONE response.
+    prompt = f"""You are evaluating a Full Stack Developer technical interview. Analyze ALL 5 questions and behavioral patterns in ONE response.
 
 {identity_text}
 
@@ -157,32 +157,32 @@ def build_batched_prompt(transcripts: List[Dict], questions: List[Dict], identit
 {transcripts_text}
 
 ## YOUR TASK:
-Evaluate EACH of the 5 questions based on their specific criteria, AND analyze behavioral patterns.
+Evaluate EACH of the 5 technical questions based on their specific criteria, AND analyze behavioral patterns.
 
 Return ONLY this JSON structure (no markdown, no explanation):
 
 {{
   "content_evaluation": {{
     "overall_score": <0-100, average of all question scores>,
-    "questions_passed": <count of questions with score >= 70>,
-    "questions_failed": <count of questions with score < 70>,
+    "questions_passed": <count of questions with score >= 60>,
+    "questions_failed": <count of questions with score < 60>,
     "pass_rate": <percentage of questions passed>,
     "summary": "<2-3 sentence summary>",
     "question_evaluations": [
       {{
         "question_number": 1,
-        "passed": <true/false, pass if score >= 70>,
+        "passed": <true/false, pass if score >= 60>,
         "score": <0-100>,
         "content_check_passed": <bool>,
         "clarity_check_passed": <bool>,
         "sentiment_check_passed": <bool>,
-        "university_found": "<university name or null>",
-        "field_of_study": "<field or null>",
-        "major_mentioned": <bool>,
-        "appears_reputable": <bool>,
-        "filler_words_excessive": <bool>,
-        "sentiment": "<positive/neutral/negative>",
-        "confidence_level": "<high/medium/low>",
+        "mentions_upload_flow": <bool>,
+        "mentions_storage": <bool>,
+        "mentions_cdn": <bool>,
+        "mentions_database": <bool>,
+        "mentions_scalability": <bool>,
+        "architectural_thinking": "<strong|moderate|weak>",
+        "technical_depth": <0-100>,
         "feedback": "<1 sentence feedback>"
       }},
       {{
@@ -190,11 +190,13 @@ Return ONLY this JSON structure (no markdown, no explanation):
         "passed": <bool>,
         "score": <0-100>,
         "content_check_passed": <bool>,
-        "sentiment_check_passed": <bool>,
-        "sincerity_check_passed": <bool>,
-        "mission_keywords_found": [<keywords>],
-        "red_flags_found": [<red flags if any>],
-        "enthusiasm_level": "<high/medium/low>",
+        "clarity_check_passed": <bool>,
+        "mentions_monolithic": <bool>,
+        "mentions_microservices": <bool>,
+        "discusses_pros_cons": <bool>,
+        "mentions_context_dependency": <bool>,
+        "comparison_quality": "<excellent|good|poor>",
+        "technical_depth": <0-100>,
         "feedback": "<1 sentence>"
       }},
       {{
@@ -202,11 +204,13 @@ Return ONLY this JSON structure (no markdown, no explanation):
         "passed": <bool>,
         "score": <0-100>,
         "content_check_passed": <bool>,
-        "sentiment_check_passed": <bool>,
-        "has_structure": <bool, problem->action->result>,
-        "shows_empathy": <bool>,
-        "empathy_keywords_found": [<keywords>],
-        "story_completeness": "<complete/partial/none>",
+        "clarity_check_passed": <bool>,
+        "distinguishes_authn_authz": <bool>,
+        "mentions_jwt_or_sessions": <bool>,
+        "mentions_security": <bool>,
+        "mentions_rbac": <bool>,
+        "security_awareness": "<high|medium|low>",
+        "technical_depth": <0-100>,
         "feedback": "<1 sentence>"
       }},
       {{
@@ -214,11 +218,14 @@ Return ONLY this JSON structure (no markdown, no explanation):
         "passed": <bool>,
         "score": <0-100>,
         "content_check_passed": <bool>,
-        "red_flag_check_passed": <bool, no negative words>,
-        "sentiment_check_passed": <bool>,
-        "positive_actions_found": [<actions>],
-        "red_flags_found": [<red flags if any>],
-        "tone": "<calm/professional/defensive>",
+        "clarity_check_passed": <bool>,
+        "mentions_measurement": <bool>,
+        "mentions_profiling": <bool>,
+        "mentions_caching": <bool>,
+        "mentions_database_optimization": <bool>,
+        "mentions_frontend_optimization": <bool>,
+        "systematic_approach": "<excellent|good|poor>",
+        "technical_depth": <0-100>,
         "feedback": "<1 sentence>"
       }},
       {{
@@ -226,56 +233,61 @@ Return ONLY this JSON structure (no markdown, no explanation):
         "passed": <bool>,
         "score": <0-100>,
         "content_check_passed": <bool>,
-        "sentiment_check_passed": <bool>,
-        "action_keywords_found": [<action words>],
-        "specific_actions_found": [<specific actions like weekly, daily>],
-        "is_forward_looking": <bool>,
-        "has_concrete_plan": <bool>,
-        "confidence_level": "<high/medium/low>",
+        "clarity_check_passed": <bool>,
+        "mentions_websockets_or_sse": <bool>,
+        "mentions_message_queue": <bool>,
+        "mentions_reliability": <bool>,
+        "mentions_scalability": <bool>,
+        "technical_choice_justified": <bool>,
+        "technical_depth": <0-100>,
         "feedback": "<1 sentence>"
       }}
     ]
   }},
   "behavioral_analysis": {{
     "behavioral_score": <0-100>,
-    "confidence_level": "<high/medium/low>",
-    "engagement_level": "<high/medium/low>",
+    "confidence_level": "<high|medium|low>",
+    "engagement_level": "<high|medium|low>",
     "stress_indicators": <0-10 scale>,
     "authenticity_score": <0-100>,
     "communication_clarity": <0-100>,
+    "problem_solving_approach": "<systematic|intuitive|unclear>",
     "overall_impression": "<2-3 sentences>",
     "strengths": [<behavioral strengths>],
-    "concerns": [<behavioral concerns>],
-    "red_flags": [<any red flags>]
+    "concerns": [<behavioral concerns>]
   }}
 }}
 
-🎯 ULTRA-LENIENT MVP EVALUATION RULES (MANDATORY):
+🎯 EVALUATION GUIDELINES:
 
-**Question 2 (Motivation):**
-- ANY mention of "help", "assist", "support", "contribute" = AUTOMATIC 100, passed = true
-- "get monetized" + "help students" = PERFECT (100 score) - monetization is NOT a red flag!
-- Monetization/money mentions are POSITIVE motivations, NEVER red flags
-- red_flags_found should be [] (empty) unless explicitly hostile
-- If response exists and shows ANY interest = 100 score
+**Scoring:**
+- Pass threshold: 60/100 per question
+- Technical depth is key: 60+ = pass, 75+ = good, 90+ = excellent
+- Focus on understanding of concepts, not perfect recall
 
-**Question 4 (Handling Challenges):**
-- Words like "difficult", "act difficult", "challenging" are NOT red flags - just describing situations!
-- ANY approach mentioned (understand, listen, question, calm, time) = AUTOMATIC 100, passed = true
-- Acknowledging challenges is POSITIVE (realistic awareness), not negative
-- red_flags_found should be [] (empty) unless explicitly hostile
-- red_flag_check_passed should ALWAYS be true
+**Question 1 (System Design):**
+- Must mention 3+ key components (upload, storage, CDN, database, processing)
+- Bonus for discussing scalability, latency, trade-offs
 
-**Question 5 (Goals):**
-- Action words like "ensure", "make sure", "be prepared", "be a good listener", "allow" COUNT AS concrete plans!
-- has_concrete_plan = true if ANY action words present
-- ANY goal/intention = AUTOMATIC 100, passed = true
-- Don't require detailed step-by-step plans - aspirational goals are sufficient
+**Question 2 (Architecture Comparison):**
+- Must compare both monolithic and microservices
+- Bonus for context-dependent reasoning
 
-**General Rules:**
-- Give 100 score BY DEFAULT for all questions if ANY positive intent
-- ONLY fail (score < 70) if: explicitly hostile, completely off-topic, or no response
-- Focus on POSITIVE aspects, not finding flaws
+**Question 3 (Auth/AuthZ):**
+- Must distinguish authentication from authorization
+- Bonus for security best practices (JWT, HTTPS, RBAC)
+
+**Question 4 (Performance Optimization):**
+- Must mention measurement/profiling first
+- Bonus for multi-layer optimization (frontend, backend, DB)
+
+**Question 5 (Real-time System):**
+- Must choose appropriate technology (WebSockets/SSE)
+- Bonus for discussing reliability and scalability
+
+**Behavioral:**
+- Assess communication clarity, confidence, problem-solving approach
+- Look for systematic thinking and technical curiosity
 - Return ONLY valid JSON, no markdown formatting
 """
     
