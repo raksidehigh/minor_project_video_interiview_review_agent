@@ -5,17 +5,18 @@ let mediaRecorder = null;
 let recordedChunks = [];
 let timerInterval = null;
 let recordingStartTime = 0;
+let recordingDuration = 0;
 
 const videoQuestions = [
-  { title: 'Introduction', prompt: 'Introduce yourself and tell us about your academic background.' },
-  { title: 'Question 1', prompt: 'What motivated you to apply for our Ambassador Program?' },
-  { title: 'Question 2', prompt: 'Describe a time when you helped someone learn something new.' },
-  { title: 'Question 3', prompt: 'How do you handle challenging situations or difficult students?' },
-  { title: 'Question 4', prompt: 'What are your goals as a mentor and how do you plan to achieve them?' }
+  { title: 'Question 1', prompt: 'System Design: Design a Video Streaming Platform Like YouTube.' },
+  { title: 'Question 2', prompt: 'Explain the Trade-offs Between Monolithic vs Microservices Architecture.' },
+  { title: 'Question 3', prompt: 'How Would You Handle Authentication and Authorization in a Full Stack Application?' },
+  { title: 'Question 4', prompt: 'Describe Your Approach to Optimizing the Performance of a Slow Web Application.' },
+  { title: 'Question 5', prompt: 'How Would You Design a Real-time Notification System?' }
 ];
 
 let currentVideoIndex = 0;
-const collectedData = { videos: [] };
+const collectedData = { videos: [], uploadedVideos: [] };
 
 function nextStep() {
   const steps = document.querySelectorAll('.step');
@@ -28,9 +29,9 @@ function nextStep() {
 }
 
 function updateProgress() {
-  const progress = ((currentStep + 1) / 8) * 100;
+  const progress = ((currentStep + 1) / 7) * 100;
   document.getElementById('progressFill').style.width = progress + '%';
-  document.getElementById('stepIndicator').textContent = `Step ${currentStep + 1} of 8`;
+  document.getElementById('stepIndicator').textContent = `Step ${currentStep + 1} of 7`;
 }
 
 async function startCamera(type) {
@@ -92,6 +93,7 @@ function loadVideoQuestion() {
     document.getElementById('retakeVideoBtn').classList.add('hidden');
     document.getElementById('recordingVideo').classList.remove('hidden');
     document.getElementById('playbackVideo').classList.add('hidden');
+    recordingDuration = 0;
   }
 }
 
@@ -122,25 +124,49 @@ function startRecording() {
     
     stream.getTracks().forEach(t => t.stop());
     document.getElementById('retakeVideoBtn').classList.remove('hidden');
-    document.getElementById('nextVideoBtn').disabled = false;
+    
+    // Enable next only if >= 15 seconds
+    if (recordingDuration >= 15) {
+      document.getElementById('nextVideoBtn').disabled = false;
+    } else {
+      alert(`Recording too short! Please record at least 15 seconds. (Recorded: ${recordingDuration}s)`);
+      document.getElementById('nextVideoBtn').disabled = true;
+    }
   };
   
   mediaRecorder.start();
   recordingStartTime = Date.now();
   document.getElementById('recordBtn').textContent = 'Stop Recording';
+  document.getElementById('recordBtn').classList.remove('bg-red-600', 'hover:bg-red-700');
+  document.getElementById('recordBtn').classList.add('bg-gray-600', 'hover:bg-gray-700');
   
   timerInterval = setInterval(() => {
     const elapsed = Math.floor((Date.now() - recordingStartTime) / 1000);
+    recordingDuration = elapsed;
     const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
     const secs = (elapsed % 60).toString().padStart(2, '0');
-    document.getElementById('timer').textContent = `${mins}:${secs}`;
+    const timerEl = document.getElementById('timer');
+    timerEl.textContent = `${mins}:${secs}`;
+    
+    // Highlight when 15s reached
+    if (elapsed >= 15) {
+      timerEl.classList.add('text-green-600', 'font-bold');
+    }
   }, 1000);
 }
 
 function stopRecording() {
+  if (recordingDuration < 15) {
+    if (!confirm(`Recording is only ${recordingDuration}s. Minimum is 15s. Stop anyway?`)) {
+      return;
+    }
+  }
+  
   mediaRecorder.stop();
   clearInterval(timerInterval);
   document.getElementById('recordBtn').textContent = 'Start Recording';
+  document.getElementById('recordBtn').classList.remove('bg-gray-600', 'hover:bg-gray-700');
+  document.getElementById('recordBtn').classList.add('bg-red-600', 'hover:bg-red-700');
 }
 
 function retakeVideo() {
@@ -148,15 +174,48 @@ function retakeVideo() {
   document.getElementById('recordingVideo').classList.remove('hidden');
   document.getElementById('retakeVideoBtn').classList.add('hidden');
   document.getElementById('nextVideoBtn').disabled = true;
+  document.getElementById('timer').classList.remove('text-green-600', 'font-bold');
+  recordingDuration = 0;
   startCamera('video');
 }
 
-function nextVideoStep() {
-  currentVideoIndex++;
-  if (currentVideoIndex < videoQuestions.length) {
-    loadVideoQuestion();
-  } else {
-    submitInterview();
+async function nextVideoStep() {
+  // Show uploading indicator
+  const nextBtn = document.getElementById('nextVideoBtn');
+  const originalText = nextBtn.textContent;
+  nextBtn.disabled = true;
+  nextBtn.textContent = 'Uploading...';
+  
+  try {
+    // Upload current video to backend
+    const formData = new FormData();
+    formData.append('video', collectedData.videos[currentVideoIndex], `video_q${currentVideoIndex + 1}.webm`);
+    formData.append('video_index', currentVideoIndex + 1);
+    formData.append('user_id', collectedData.temp_user_id || 'temp');
+    
+    const response = await fetch(`${API_URL}/upload-video`, {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (!response.ok) {
+      throw new Error('Upload failed');
+    }
+    
+    const result = await response.json();
+    collectedData.uploadedVideos.push(result.path);
+    
+    // Move to next question
+    currentVideoIndex++;
+    if (currentVideoIndex < videoQuestions.length) {
+      loadVideoQuestion();
+    } else {
+      submitInterview();
+    }
+  } catch (error) {
+    alert('Failed to upload video: ' + error.message);
+    nextBtn.disabled = false;
+    nextBtn.textContent = originalText;
   }
 }
 
@@ -172,8 +231,7 @@ async function submitInterview() {
   formData.append('profile_photo', collectedData.profile_photo);
   
   collectedData.videos.forEach((video, i) => {
-    const name = i === 0 ? 'video_intro' : `video_q${i}`;
-    formData.append(name, video, `${name}.webm`);
+    formData.append(`video_q${i + 1}`, video, `video_q${i + 1}.webm`);
   });
   
   try {
